@@ -28,3 +28,7 @@ cabal.project.local~
 *~
 *.swp
 .DS_Store
+
+# C source files
+*.c
+*.h

@@ -1,7 +1,14 @@
 module Main where
 
+import System.Environment (getArgs)
 import Tokeniser
 
 main :: IO ()
 main = do
-  putStrLn "Hello, Haskell!"
+    args <- getArgs
+    case args of
+        [inputFile] -> do
+            input <- readFile inputFile
+            putStrLn $ show (tokenise input)
+        _ -> do
+            putStrLn "[Error] 1 argument <input_file> required"    
