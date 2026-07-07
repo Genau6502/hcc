@@ -55,7 +55,7 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib
+    exposed-modules: Tokeniser Types
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -104,7 +104,7 @@ test-suite hcc-test
     default-language: Haskell2010
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules: TestSuite TestTypes TokeniserTest
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

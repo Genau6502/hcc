@@ -1,4 +1,6 @@
 module Main (main) where
 
+import TestSuite
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented."
+main = runTests
