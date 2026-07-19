@@ -48,28 +48,65 @@ parseDeclarator (NatTok x : toks) = do
             return $ ((\base -> FunctionType argts (outer base)), toks'')
         parsePost toks = pure (id, toks)
 
-        parseArgTypes :: Parser [Type]
-        parseArgTypes (RParenTok:toks) = pure ([], toks)
-        -- TODO change this to just the declarator with no name once ready
-        parseArgTypes (t:toks) = do
-            ((_, t'), toks') <- parseDeclarator (t:toks)
-            (ts, toks'') <- parseNextArgType toks'
-            return (t':ts, toks'')
-        parseArgTypes _ = Left $ ExpectedChar RParenTok   
-
-        parseNextArgType :: Parser [Type]
-        parseNextArgType (RParenTok:toks) = pure ([], toks)
-        parseNextArgType (CommaTok:toks) = do
-            (ts, toks') <- parseArgTypes toks
-            return (ts, toks')
-        parseNextArgType _ = Left $ Unexpected  
-
         parseIntExpr :: Expr -> Either Error Expr
         parseIntExpr e = case (parseTypeOfExpr e) of
             Left err -> Left err
             Right t -> Right e 
 parseDeclarator toks = Left $ InvalidType toks
 
+parseAbstractDeclarator :: Parser (Type)
+parseAbstractDeclarator (NatTok x : toks) = do
+    t <- parseBaseType x
+    (f, toks') <- parseAbstractDeclarator' toks
+    return (f t, toks')
+    where
+        -- the type passed is the "base" type
+        parseAbstractDeclarator' :: Parser (Type -> Type)
+        -- This is ONLY for grouping parenthesis, not for function pointers
+        parseAbstractDeclarator' (LParenTok:toks) = do
+            (inner, toks') <- parseAbstractDeclarator' toks
+            toks'' <- consumeTok RParenTok toks'
+            (outer, toks''') <- parsePost toks''
+            return $ ((\base -> (inner.outer) base), toks''')
+        parseAbstractDeclarator' (AsteriskTok:toks) = do
+            (inner, toks') <- parseAbstractDeclarator' toks
+            return $ ((\base -> inner (PointerType base)), toks')
+        -- No more typing to declare
+        parseAbstractDeclarator' toks = Left $ InvalidType toks
+        
+        parsePost :: Parser (Type -> Type)
+        parsePost (LSqParenTok:toks) = do
+            (e, toks') <- parseExpr toks
+            sizeExpr <- parseIntExpr e
+            toks'' <- consumeTok RSqParenTok toks'
+            (outer, toks''') <- parsePost toks''
+            return $ ((\base -> ArrayType (outer base) sizeExpr), toks''')
+        parsePost (LParenTok:toks) = do
+            (argts, toks') <- parseArgTypes toks
+            (outer, toks'') <- parsePost toks'
+            return $ ((\base -> FunctionType argts (outer base)), toks'')
+        parsePost toks = pure (id, toks)
+
+        parseIntExpr :: Expr -> Either Error Expr
+        parseIntExpr e = case (parseTypeOfExpr e) of
+            Left err -> Left err
+            Right t -> Right e 
+parseAbstractDeclarator toks = Left $ InvalidType toks
+
+parseArgTypes :: Parser [Type]
+parseArgTypes (RParenTok:toks) = pure ([], toks)
+parseArgTypes (NatTok x:toks) = do
+    t <- parseBaseType x
+    (ts, toks') <- parseNextArgType toks
+    return (t:ts, toks')
+parseArgTypes _ = Left $ ExpectedChar RParenTok
+
+parseNextArgType :: Parser [Type]
+parseNextArgType (RParenTok:toks) = pure ([], toks)
+parseNextArgType (CommaTok:toks) = do
+    (ts, toks') <- parseArgTypes toks
+    return (ts, toks')
+parseNextArgType _ = Left $ Unexpected  
 
 parseTypeOfExpr :: Expr -> Either Error Type
 parseTypeOfExpr (AtomExpr (IntAtom _)) = pure IntType

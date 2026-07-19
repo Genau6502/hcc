@@ -52,8 +52,8 @@ parseTypeTests = TestGroup
         , "int (*x[3])[4]" -: parseDeclarator [NatTok "int",LParenTok,AsteriskTok,NatTok "x",LSqParenTok,PrimIntTok 3,RSqParenTok,RParenTok,LSqParenTok,PrimIntTok 4,RSqParenTok] --> Right (("x", ArrayType (PointerType (ArrayType IntType (AtomExpr (IntAtom 4)))) (AtomExpr (IntAtom 3))), [])
         , "int **x" -: parseDeclarator [NatTok "int",AsteriskTok,AsteriskTok,NatTok "x"] --> Right (("x", PointerType (PointerType IntType)), [])
         , "int x" -: parseDeclarator [ NatTok "int", NatTok "x" ] --> Right (("x", IntType), [])
-        , "int (*f)(int x, int x)" -: parseDeclarator [NatTok "int",LParenTok,AsteriskTok,NatTok "f",RParenTok,LParenTok,NatTok "int", NatTok "x",CommaTok,NatTok "int", NatTok "x",RParenTok] --> Right (("f", PointerType (FunctionType [IntType, IntType] IntType)), [])
-        , "int *(*get)(int x)" -: parseDeclarator [NatTok "int",AsteriskTok,LParenTok,AsteriskTok,NatTok "get",RParenTok,LParenTok,NatTok "int", NatTok "x",RParenTok] --> Right (("get", PointerType (FunctionType [IntType] (PointerType IntType))), [])
-        , "int (*(*p)[4])(int x)" -: parseDeclarator [NatTok "int",LParenTok,AsteriskTok,LParenTok,AsteriskTok,NatTok "p",RParenTok,LSqParenTok,PrimIntTok 4,RSqParenTok,RParenTok,LParenTok,NatTok "int",NatTok "x",RParenTok] --> Right (("p", PointerType (ArrayType (PointerType (FunctionType [IntType] IntType)) (AtomExpr (IntAtom 4)))), [])
+        , "int (*f)(int, int)" -: parseDeclarator [NatTok "int",LParenTok,AsteriskTok,NatTok "f",RParenTok,LParenTok,NatTok "int",CommaTok,NatTok "int",RParenTok] --> Right (("f", PointerType (FunctionType [IntType, IntType] IntType)), [])
+        , "int *(*get)(int)" -: parseDeclarator [NatTok "int",AsteriskTok,LParenTok,AsteriskTok,NatTok "get",RParenTok,LParenTok,NatTok "int",RParenTok] --> Right (("get", PointerType (FunctionType [IntType] (PointerType IntType))), [])
+        , "int (*(*p)[4])(int)" -: parseDeclarator [NatTok "int",LParenTok,AsteriskTok,LParenTok,AsteriskTok,NatTok "p",RParenTok,LSqParenTok,PrimIntTok 4,RSqParenTok,RParenTok,LParenTok,NatTok "int",RParenTok] --> Right (("p", PointerType (ArrayType (PointerType (FunctionType [IntType] IntType)) (AtomExpr (IntAtom 4)))), [])
         ]
     )
