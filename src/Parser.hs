@@ -1,4 +1,4 @@
-module Parser(parseAtom, parseExpr, parseStmt, parseDeclarator) where
+module Parser(parseAtom, parseExpr, parseStmt, parseDeclarator, parseAbstractDeclarator) where
 
 import Types
 type Parser a = [Token] -> Either Error (a, [Token])
@@ -54,7 +54,7 @@ parseDeclarator (NatTok x : toks) = do
             Right t -> Right e 
 parseDeclarator toks = Left $ InvalidType toks
 
-parseAbstractDeclarator :: Parser (Type)
+parseAbstractDeclarator :: Parser Type
 parseAbstractDeclarator (NatTok x : toks) = do
     t <- parseBaseType x
     (f, toks') <- parseAbstractDeclarator' toks
@@ -62,18 +62,21 @@ parseAbstractDeclarator (NatTok x : toks) = do
     where
         -- the type passed is the "base" type
         parseAbstractDeclarator' :: Parser (Type -> Type)
+        parseAbstractDeclarator' (LParenTok : NatTok x : toks) = parsePost (LParenTok : NatTok x : toks)
+        parseAbstractDeclarator' (LParenTok : RParenTok : toks) = parsePost (LParenTok : RParenTok : toks)
         -- This is ONLY for grouping parenthesis, not for function pointers
         parseAbstractDeclarator' (LParenTok:toks) = do
             (inner, toks') <- parseAbstractDeclarator' toks
             toks'' <- consumeTok RParenTok toks'
             (outer, toks''') <- parsePost toks''
-            return $ ((\base -> (inner.outer) base), toks''')
+            -- Note: expanded (inner.outer) to inner(outer base) for safety
+            return $ ((\base -> inner (outer base)), toks''')
         parseAbstractDeclarator' (AsteriskTok:toks) = do
             (inner, toks') <- parseAbstractDeclarator' toks
             return $ ((\base -> inner (PointerType base)), toks')
         -- No more typing to declare
-        parseAbstractDeclarator' toks = Left $ InvalidType toks
-        
+        parseAbstractDeclarator' toks = parsePost toks
+      
         parsePost :: Parser (Type -> Type)
         parsePost (LSqParenTok:toks) = do
             (e, toks') <- parseExpr toks
@@ -96,9 +99,9 @@ parseAbstractDeclarator toks = Left $ InvalidType toks
 parseArgTypes :: Parser [Type]
 parseArgTypes (RParenTok:toks) = pure ([], toks)
 parseArgTypes (NatTok x:toks) = do
-    t <- parseBaseType x
-    (ts, toks') <- parseNextArgType toks
-    return (t:ts, toks')
+    (t, toks') <- parseAbstractDeclarator (NatTok x:toks)
+    (ts, toks'') <- parseNextArgType toks'
+    return (t:ts, toks'')
 parseArgTypes _ = Left $ ExpectedChar RParenTok
 
 parseNextArgType :: Parser [Type]
@@ -122,20 +125,10 @@ parseStmt toks = parseLineStmt
 
         parseDeclareAndAssignStmt :: Either Error (Stmt, [Token])
         parseDeclareAndAssignStmt = do
-            (t, toks1) <- parseType toks
-            (varName, toks2) <- parseVarName toks1
-            toks3 <- consumeTok EqualsTok toks2
-            (expr, toks4) <- parseExpr(toks3)
-            return (DeclareAndAssign (Var varName) expr, toks4)
-
-
-parseType :: Parser Type
-parseType ((NatTok "int"):toks) = pure (IntType, toks)
-parseType (AsteriskTok:toks) = (\(t, toks') -> (PointerType t, toks')) <$> parseType toks        
-
-parseVarName :: Parser String
-parseVarName ((NatTok x):toks) = pure (x, toks)
-parseVarName _ = Left Unexpected
+            ((name, t), toks1) <- parseDeclarator toks
+            toks2 <- consumeTok EqualsTok toks1
+            (expr, toks3) <- parseExpr(toks2)
+            return (DeclareAndAssign (Var t name) expr, toks3)
 
 parseExpr :: Parser Expr
 parseExpr toks = parseMinusExpr toks <|> parseAddExpr toks <|> parseSubtractExpr toks <|> parseMultiplyExpr toks <|> ((\(a, toks') -> (AtomExpr a, toks')) <$> (parseAtom toks))

@@ -1,6 +1,6 @@
 module Types where
 
-data Var = Var String
+data Var = Var Type String
     deriving (Eq, Show)
 
 data Type = PointerType Type | StructType String | FunctionType [Type] Type | ArrayType Type Expr | IntType
