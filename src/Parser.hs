@@ -119,7 +119,7 @@ parseStmt :: Parser Stmt
 parseStmt toks = parseLineStmt
     where
         parseLineStmt :: Either Error (Stmt, [Token])
-        parseLineStmt = do  (stmt, toks') <- parseDeclareAndAssignStmt
+        parseLineStmt = do  (stmt, toks') <- parseDeclareAndAssignStmt <|> parseReturnStmt
                             (toks'') <- consumeTok SemiColonTok toks'
                             return (stmt, toks'')
 
@@ -128,7 +128,13 @@ parseStmt toks = parseLineStmt
             ((name, t), toks1) <- parseDeclarator toks
             toks2 <- consumeTok EqualsTok toks1
             (expr, toks3) <- parseExpr(toks2)
-            return (DeclareAndAssign (Var t name) expr, toks3)
+            return (DeclareAndAssignStmt (Var t name) expr, toks3)
+        
+        parseReturnStmt :: Either Error (Stmt, [Token])
+        parseReturnStmt = do
+            toks' <- consumeTok ReturnTok toks
+            (expr, toks'') <- parseExpr toks'
+            return (ReturnStmt expr, toks'')
 
 parseExpr :: Parser Expr
 parseExpr toks = parseMinusExpr toks <|> parseAddExpr toks <|> parseSubtractExpr toks <|> parseMultiplyExpr toks <|> ((\(a, toks') -> (AtomExpr a, toks')) <$> (parseAtom toks))

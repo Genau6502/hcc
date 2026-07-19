@@ -12,7 +12,7 @@ data Atom = IntAtom Int | CharAtom Char | ParenAtom Expr | ValAtom String | Type
 data Expr = AddExpr Atom Atom | MinusExpr Atom | SubtractExpr Atom Atom | MultiplyExpr Atom Atom | AtomExpr Atom | ImplicitExpr {- This is used for array initialisation where size can be inferred later on-}
     deriving (Eq, Show)
 
-data Stmt = DeclareAndAssign Var Expr
+data Stmt = DeclareAndAssignStmt Var Expr | ReturnStmt Expr
     deriving (Eq, Show)
 
 data Error = Unexpected | IntegerParseError String | UnexpectedToken String | NoMoreTokens | InvalidChar String | ExpectedChar Token | ExpectedInt Token | InvalidType [Token]

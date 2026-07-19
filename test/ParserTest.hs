@@ -36,8 +36,9 @@ parseStmtTests = TestGroup
     (
         "Parse Stmt Tests"
         , [ 
-            "int x = 2 + 2;" -: parseStmt [ NatTok "int", NatTok "x", EqualsTok, PrimIntTok 2, PlusTok, PrimIntTok 2, SemiColonTok ] --> Right (DeclareAndAssign (Var IntType "x") (AddExpr (IntAtom 2) (IntAtom 2)), [])
-          , "int **x = 0;" -: parseStmt [NatTok "int",AsteriskTok,AsteriskTok,NatTok "x",EqualsTok,PrimIntTok 0,SemiColonTok] --> Right (DeclareAndAssign (Var (PointerType (PointerType IntType)) "x") (AtomExpr (IntAtom 0)), [])
+            "int x = 2 + 2;" -: parseStmt [ NatTok "int", NatTok "x", EqualsTok, PrimIntTok 2, PlusTok, PrimIntTok 2, SemiColonTok ] --> Right (DeclareAndAssignStmt (Var IntType "x") (AddExpr (IntAtom 2) (IntAtom 2)), [])
+        ,   "int **x = 0;" -: parseStmt [NatTok "int",AsteriskTok,AsteriskTok,NatTok "x",EqualsTok,PrimIntTok 0,SemiColonTok] --> Right (DeclareAndAssignStmt (Var (PointerType (PointerType IntType)) "x") (AtomExpr (IntAtom 0)), [])
+        ,   "return 0;" -: parseStmt [ReturnTok,PrimIntTok 0,SemiColonTok] --> Right (ReturnStmt (AtomExpr (IntAtom 0)), [])
         ]
     )
 
