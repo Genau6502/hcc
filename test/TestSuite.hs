@@ -3,9 +3,10 @@ module TestSuite where
 import Control.Monad
 import TestTypes
 import TokeniserTest
+import ParserTest
 
 tests :: [TestGroup]
-tests = [ tokeniserTests
+tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseStmtTests, parseTypeTests
     ]
 
 runTests :: IO ()

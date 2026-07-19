@@ -15,7 +15,7 @@ common shared
 
 library
     import:           shared
-    exposed-modules:  Tokeniser Types
+    exposed-modules:  Tokeniser Types Parser
     hs-source-dirs:   src
 
 executable hcc
@@ -28,6 +28,6 @@ test-suite hcc-test
     import:           shared
     type:             exitcode-stdio-1.0
     main-is:          Main.hs
-    other-modules:    TestSuite TestTypes TokeniserTest
+    other-modules:    TestSuite TestTypes TokeniserTest ParserTest
     hs-source-dirs:   test
     build-depends:    hcc
