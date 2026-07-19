@@ -6,7 +6,7 @@ import TokeniserTest
 import ParserTest
 
 tests :: [TestGroup]
-tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseStmtTests, parseTypeTests
+tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseStmtTests, parseDeclaratorTests, parseAbstractDeclaratorTests
     ]
 
 runTests :: IO ()

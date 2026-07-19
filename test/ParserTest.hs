@@ -42,10 +42,10 @@ parseStmtTests = TestGroup
     )
 
 -- Types
-parseTypeTests :: TestGroup
-parseTypeTests = TestGroup
+parseDeclaratorTests :: TestGroup
+parseDeclaratorTests = TestGroup
     (
-        "Parse Type Tests"
+        "Parse Declarator Tests"
         , [ "int x" -: parseDeclarator [ NatTok "int", NatTok "x" ] --> Right (("x", IntType), [])
         , "int *x" -: parseDeclarator [ NatTok "int", AsteriskTok, NatTok "x" ] --> Right (("x", PointerType IntType), [])
         , "int x[3]" -: parseDeclarator [NatTok "int",NatTok "x",LSqParenTok,PrimIntTok 3,RSqParenTok] --> Right (("x", ArrayType IntType (AtomExpr (IntAtom 3))), [])
@@ -58,5 +58,25 @@ parseTypeTests = TestGroup
         , "int (*f)(int, int)" -: parseDeclarator [NatTok "int",LParenTok,AsteriskTok,NatTok "f",RParenTok,LParenTok,NatTok "int",CommaTok,NatTok "int",RParenTok] --> Right (("f", PointerType (FunctionType [IntType, IntType] IntType)), [])
         , "int *(*get)(int)" -: parseDeclarator [NatTok "int",AsteriskTok,LParenTok,AsteriskTok,NatTok "get",RParenTok,LParenTok,NatTok "int",RParenTok] --> Right (("get", PointerType (FunctionType [IntType] (PointerType IntType))), [])
         , "int (*(*p)[4])(int)" -: parseDeclarator [NatTok "int",LParenTok,AsteriskTok,LParenTok,AsteriskTok,NatTok "p",RParenTok,LSqParenTok,PrimIntTok 4,RSqParenTok,RParenTok,LParenTok,NatTok "int",RParenTok] --> Right (("p", PointerType (ArrayType (PointerType (FunctionType [IntType] IntType)) (AtomExpr (IntAtom 4)))), [])
+        ]
+    )
+
+-- Types
+parseAbstractDeclaratorTests :: TestGroup
+parseAbstractDeclaratorTests = TestGroup
+    (
+        "Parse Abstract Declarator Tests"
+        , [ "int" -: parseAbstractDeclarator [ NatTok "int" ] --> Right (IntType, [])
+        , "int *" -: parseAbstractDeclarator [ NatTok "int", AsteriskTok ] --> Right (PointerType IntType, [])
+        , "int [3]" -: parseAbstractDeclarator [NatTok "int",LSqParenTok,PrimIntTok 3,RSqParenTok] --> Right (ArrayType IntType (AtomExpr (IntAtom 3)), [])
+        , "int [3][4]" -: parseAbstractDeclarator [NatTok "int",LSqParenTok,PrimIntTok 3,RSqParenTok,LSqParenTok,PrimIntTok 4,RSqParenTok] --> Right (ArrayType (ArrayType IntType (AtomExpr (IntAtom 4))) (AtomExpr (IntAtom 3)), [])
+        , "int *[3][4]" -: parseAbstractDeclarator [NatTok "int",AsteriskTok,LSqParenTok,PrimIntTok 3,RSqParenTok,LSqParenTok,PrimIntTok 4,RSqParenTok] --> Right (ArrayType (ArrayType (PointerType IntType) (AtomExpr (IntAtom 4))) (AtomExpr (IntAtom 3)), [])
+        , "int (*)[3]" -: parseAbstractDeclarator [NatTok "int",LParenTok,AsteriskTok,RParenTok,LSqParenTok,PrimIntTok 3,RSqParenTok] --> Right (PointerType (ArrayType IntType (AtomExpr (IntAtom 3))), [])
+        , "int (*[3])[4]" -: parseAbstractDeclarator [NatTok "int",LParenTok,AsteriskTok,LSqParenTok,PrimIntTok 3,RSqParenTok,RParenTok,LSqParenTok,PrimIntTok 4,RSqParenTok] --> Right (ArrayType (PointerType (ArrayType IntType (AtomExpr (IntAtom 4)))) (AtomExpr (IntAtom 3)), [])
+        , "int **" -: parseAbstractDeclarator [NatTok "int",AsteriskTok,AsteriskTok] --> Right (PointerType (PointerType IntType), [])
+        , "int" -: parseAbstractDeclarator [ NatTok "int" ] --> Right (IntType, [])
+        , "int (*)(int, int)" -: parseAbstractDeclarator [NatTok "int",LParenTok,AsteriskTok,RParenTok,LParenTok,NatTok "int",CommaTok,NatTok "int",RParenTok] --> Right (PointerType (FunctionType [IntType, IntType] IntType), [])
+        , "int *(*)(int)" -: parseAbstractDeclarator [NatTok "int",AsteriskTok,LParenTok,AsteriskTok,RParenTok,LParenTok,NatTok "int",RParenTok] --> Right (PointerType (FunctionType [IntType] (PointerType IntType)), [])
+        , "int (*(*)[4])(int)" -: parseAbstractDeclarator [NatTok "int",LParenTok,AsteriskTok,LParenTok,AsteriskTok,RParenTok,LSqParenTok,PrimIntTok 4,RSqParenTok,RParenTok,LParenTok,NatTok "int",RParenTok] --> Right (PointerType (ArrayType (PointerType (FunctionType [IntType] IntType)) (AtomExpr (IntAtom 4))), [])
         ]
     )
