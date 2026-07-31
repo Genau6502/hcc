@@ -20,3 +20,8 @@ data Error = Unexpected | IntegerParseError String | UnexpectedToken String | No
 
 data Token = LBraceTok | RBraceTok | SemiColonTok | EqualsTok | LParenTok | RParenTok | PrimIntTok Int | CharTok Char | VoidTok | StructTok | UnionTok | NatTok String | CommaTok | AsteriskTok | AmpersandTok | WhileTok | ForTok | ReturnTok | PlusTok | MinusTok | DivTok | GreaterTok | LessTok | StaticTok | DecimalTok | SizeOfTok | LSqParenTok | RSqParenTok
     deriving (Eq, Show)
+
+data Location = R12 | R13 | R14 | R15 | Stack Int | Temp Int
+    deriving (Eq, Show)
+
+type RegisterAllocation = [(Var, Location)]

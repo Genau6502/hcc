@@ -4,9 +4,10 @@ import Control.Monad
 import TestTypes
 import TokeniserTest
 import ParserTest
+import RegisterTest
 
 tests :: [TestGroup]
-tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseStmtTests, parseDeclaratorTests, parseAbstractDeclaratorTests
+tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseStmtTests, parseDeclaratorTests, parseAbstractDeclaratorTests, allocateRegistersTests
     ]
 
 runTests :: IO ()

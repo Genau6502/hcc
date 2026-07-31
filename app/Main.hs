@@ -2,6 +2,8 @@ module Main where
 
 import System.Environment (getArgs)
 import Tokeniser
+import Parser
+import Registers
 
 main :: IO ()
 main = do

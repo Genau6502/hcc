@@ -1,0 +1,13 @@
+module RegisterTest where
+
+import TestTypes
+import Types
+import Registers
+
+allocateRegistersTests :: TestGroup
+allocateRegistersTests = TestGroup 
+    (
+        "Register allocation tests"
+        , [   "(1)" -: allocateRegisters [DeclareAndAssignStmt (Var IntType "x") (AtomExpr (IntAtom 2)), DeclareAndAssignStmt (Var IntType "y") (AtomExpr (IntAtom 1))] --> [(Var IntType "y",R13),(Var IntType "x",R12)]
+        ]
+    )
