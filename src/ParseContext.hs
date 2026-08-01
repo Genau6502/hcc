@@ -1,0 +1,30 @@
+module ParseContext(emptyContext, putVarInScope, removeVarFromScope, varInScope, Context) where
+
+import Types
+
+type Context = [Var]
+
+putVarInScope :: Context -> Var -> Context
+putVarInScope cs var = var:cs
+
+--todo: consider if we need to handle errors in this
+removeVarFromScope :: Context -> Var -> Context
+removeVarFromScope (c:cs) var
+    | c == var = cs
+    | otherwise = removeVarFromScope cs var
+removeVarFromScope [] _ = []
+
+varInScope :: Context -> String -> Maybe Var
+varInScope ((Var t n):cs) name
+    | n == name = Just (Var t n)
+    | otherwise = varInScope cs name
+varInScope _ _ = Nothing
+
+errorIfAlreadyContainsVarName :: Context -> String -> Either Error Context
+errorIfAlreadyContainsVarName ((Var t n):cs) name
+    | n == name = Left $ VariableAlreadyDeclared name
+    | otherwise = (:) (Var t n) <$> errorIfAlreadyContainsVarName cs name
+errorIfAlreadyContainsVarName [] _ = Right []
+
+emptyContext :: Context
+emptyContext = []

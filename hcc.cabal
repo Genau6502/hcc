@@ -15,7 +15,7 @@ common shared
 
 library
     import:           shared
-    exposed-modules:  Tokeniser Types Parser Registers
+    exposed-modules:  Tokeniser Types Parser Registers ParseContext
     hs-source-dirs:   src
 
 executable hcc

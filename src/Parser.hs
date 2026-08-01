@@ -1,6 +1,7 @@
-module Parser(parseAtom, parseExpr, parseStmt, parseDeclarator, parseAbstractDeclarator) where
+module Parser(parseAtom, parseExpr, parseStmt, parseBlock, parseDeclarator, parseAbstractDeclarator) where
 
 import Types
+import ParseContext
 type Parser a = [Token] -> Either Error (a, [Token])
 
 (<|>) :: Either a b -> Either a b -> Either a b
@@ -12,8 +13,8 @@ parseBaseType :: String -> Either Error Type
 parseBaseType "int" = pure IntType
 parseBaseType _ = Left Unexpected
 
-parseDeclarator :: Parser (String, Type)
-parseDeclarator (NatTok x : toks) = do
+parseDeclarator :: Context -> Parser (String, Type)
+parseDeclarator ctx (NatTok x : toks) = do
     t <- parseBaseType x
     ((name, f), toks') <- parseDeclarator' toks
     return ((name, f t), toks')
@@ -37,13 +38,13 @@ parseDeclarator (NatTok x : toks) = do
         
         parsePost :: Parser (Type -> Type)
         parsePost (LSqParenTok:toks) = do
-            (e, toks') <- parseExpr toks
+            (e, toks') <- parseExpr ctx toks
             sizeExpr <- parseIntExpr e
             toks'' <- consumeTok RSqParenTok toks'
             (outer, toks''') <- parsePost toks''
             return $ ((\base -> ArrayType (outer base) sizeExpr), toks''')
         parsePost (LParenTok:toks) = do
-            (argts, toks') <- parseArgTypes toks
+            (argts, toks') <- parseArgTypes ctx toks
             (outer, toks'') <- parsePost toks'
             return $ ((\base -> FunctionType argts (outer base)), toks'')
         parsePost toks = pure (id, toks)
@@ -51,11 +52,11 @@ parseDeclarator (NatTok x : toks) = do
         parseIntExpr :: Expr -> Either Error Expr
         parseIntExpr e = case (parseTypeOfExpr e) of
             Left err -> Left err
-            Right t -> Right e 
-parseDeclarator toks = Left $ InvalidType toks
+            Right _ -> Right e 
+parseDeclarator _ toks = Left $ InvalidType toks
 
-parseAbstractDeclarator :: Parser Type
-parseAbstractDeclarator (NatTok x : toks) = do
+parseAbstractDeclarator :: Context -> Parser Type
+parseAbstractDeclarator ctx (NatTok x : toks) = do
     t <- parseBaseType x
     (f, toks') <- parseAbstractDeclarator' toks
     return (f t, toks')
@@ -79,13 +80,13 @@ parseAbstractDeclarator (NatTok x : toks) = do
       
         parsePost :: Parser (Type -> Type)
         parsePost (LSqParenTok:toks) = do
-            (e, toks') <- parseExpr toks
+            (e, toks') <- parseExpr ctx toks
             sizeExpr <- parseIntExpr e
             toks'' <- consumeTok RSqParenTok toks'
             (outer, toks''') <- parsePost toks''
             return $ ((\base -> ArrayType (outer base) sizeExpr), toks''')
         parsePost (LParenTok:toks) = do
-            (argts, toks') <- parseArgTypes toks
+            (argts, toks') <- parseArgTypes ctx toks
             (outer, toks'') <- parsePost toks'
             return $ ((\base -> FunctionType argts (outer base)), toks'')
         parsePost toks = pure (id, toks)
@@ -93,86 +94,104 @@ parseAbstractDeclarator (NatTok x : toks) = do
         parseIntExpr :: Expr -> Either Error Expr
         parseIntExpr e = case (parseTypeOfExpr e) of
             Left err -> Left err
-            Right t -> Right e 
-parseAbstractDeclarator toks = Left $ InvalidType toks
+            Right IntType -> Right e
+            Right t -> Left $ InvalidType (NatTok x : toks)
+parseAbstractDeclarator _ toks = Left $ InvalidType toks
 
-parseArgTypes :: Parser [Type]
-parseArgTypes (RParenTok:toks) = pure ([], toks)
-parseArgTypes (NatTok x:toks) = do
-    (t, toks') <- parseAbstractDeclarator (NatTok x:toks)
-    (ts, toks'') <- parseNextArgType toks'
+parseArgTypes :: Context -> Parser [Type]
+parseArgTypes ctx (RParenTok:toks) = pure ([], toks)
+parseArgTypes ctx (NatTok x:toks) = do
+    (t, toks') <- parseAbstractDeclarator ctx (NatTok x:toks)
+    (ts, toks'') <- parseNextArgType ctx toks'
     return (t:ts, toks'')
-parseArgTypes _ = Left $ ExpectedChar RParenTok
+parseArgTypes _ _ = Left $ ExpectedChar RParenTok
 
-parseNextArgType :: Parser [Type]
-parseNextArgType (RParenTok:toks) = pure ([], toks)
-parseNextArgType (CommaTok:toks) = do
-    (ts, toks') <- parseArgTypes toks
+parseNextArgType :: Context -> Parser [Type]
+parseNextArgType _ (RParenTok:toks) = pure ([], toks)
+parseNextArgType ctx (CommaTok:toks) = do
+    (ts, toks') <- parseArgTypes ctx toks
     return (ts, toks')
-parseNextArgType _ = Left $ Unexpected  
+parseNextArgType _ _ = Left $ Unexpected  
 
 parseTypeOfExpr :: Expr -> Either Error Type
 parseTypeOfExpr (AtomExpr (IntAtom _)) = pure IntType
 parseTypeOfExpr _ = Left Unexpected
 
-parseStmt :: Parser Stmt
-parseStmt toks = parseLineStmt
+parseBlock :: Context -> Parser ([Stmt], Context)
+parseBlock vars toks = do
+    toks' <- consumeTok LBraceTok toks
+    parseNextStmt vars toks'
     where
-        parseLineStmt :: Either Error (Stmt, [Token])
-        parseLineStmt = do  (stmt, toks') <- parseDeclareAndAssignStmt <|> parseReturnStmt
-                            (toks'') <- consumeTok SemiColonTok toks'
-                            return (stmt, toks'')
+        parseNextStmt :: [Var] -> Parser ([Stmt], Context)
+        parseNextStmt ctx1 toks1 = ((\toks2 -> (([], ctx1), toks2)) <$> consumeTok RBraceTok toks1) <|> do
+            ((stmt, ctx2), toks2) <- parseStmt ctx1 toks1
+            ((stmts, ctx3), toks3) <- parseNextStmt ctx2 toks2
+            return ((stmt:stmts, ctx3), toks3)
 
-        parseDeclareAndAssignStmt :: Either Error (Stmt, [Token])
+parseStmt :: Context -> Parser (Stmt, Context)
+parseStmt ctx toks = parseLineStmt
+    where
+        parseLineStmt :: Either Error ((Stmt, Context), [Token])
+        parseLineStmt = do  (stmtctx, toks') <- parseDeclareAndAssignStmt <|> parseReturnStmt
+                            (toks'') <- consumeTok SemiColonTok toks'
+                            return (stmtctx, toks'')
+
+        parseDeclareAndAssignStmt :: Either Error ((Stmt, Context), [Token])
         parseDeclareAndAssignStmt = do
-            ((name, t), toks1) <- parseDeclarator toks
+            ((name, t), toks1) <- parseDeclarator ctx toks
             toks2 <- consumeTok EqualsTok toks1
-            (expr, toks3) <- parseExpr(toks2)
-            return (DeclareAndAssignStmt (Var t name) expr, toks3)
+            (expr, toks3) <- parseExpr ctx toks2
+            return (let var = (Var t name) in ((DeclareAndAssignStmt var expr, putVarInScope ctx var), toks3))
         
-        parseReturnStmt :: Either Error (Stmt, [Token])
+        parseReturnStmt :: Either Error ((Stmt, Context), [Token])
         parseReturnStmt = do
             toks' <- consumeTok ReturnTok toks
-            (expr, toks'') <- parseExpr toks'
-            return (ReturnStmt expr, toks'')
+            (expr, toks'') <- parseExpr ctx toks'
+            return ((ReturnStmt expr, ctx), toks'')
 
-parseExpr :: Parser Expr
-parseExpr toks = parseMinusExpr toks <|> parseAddExpr toks <|> parseSubtractExpr toks <|> parseMultiplyExpr toks <|> ((\(a, toks') -> (AtomExpr a, toks')) <$> (parseAtom toks))
+parseExpr :: Context -> Parser Expr
+parseExpr ctx toks = parseMinusExpr ctx toks <|> parseAddExpr ctx toks <|> parseSubtractExpr ctx toks <|> parseMultiplyExpr ctx toks <|> ((\(a, toks') -> (AtomExpr a, toks')) <$> (parseAtom ctx toks))
 
-parseBinOp :: Token -> (Atom -> Atom -> Expr) -> Parser Expr
-parseBinOp t e toks = do
-    (a1, toks') <- parseAtom toks
+parseBinOp :: Context -> Token -> (Atom -> Atom -> Expr) -> Parser Expr
+parseBinOp ctx t e toks = do
+    (a1, toks') <- parseAtom ctx toks
     toks'' <- consumeTok t toks'
-    (a2, toks''') <- parseAtom toks''
+    (a2, toks''') <- parseAtom ctx toks''
     return (e a1 a2, toks''')
 
-parseMinusExpr :: Parser Expr
-parseMinusExpr toks = do
+parseMinusExpr :: Context -> Parser Expr
+parseMinusExpr ctx toks = do
     toks' <- consumeTok MinusTok toks
-    (a, toks'') <- parseAtom toks'
+    (a, toks'') <- parseAtom ctx toks'
     return $ (MinusExpr a, toks'')
 
-parseAddExpr :: Parser Expr
-parseAddExpr = parseBinOp PlusTok AddExpr
+parseAddExpr :: Context -> Parser Expr
+parseAddExpr ctx = parseBinOp ctx PlusTok AddExpr
 
-parseSubtractExpr :: Parser Expr
-parseSubtractExpr = parseBinOp MinusTok SubtractExpr
+parseSubtractExpr :: Context -> Parser Expr
+parseSubtractExpr ctx = parseBinOp ctx MinusTok SubtractExpr
 
-parseMultiplyExpr :: Parser Expr
-parseMultiplyExpr = parseBinOp AsteriskTok MultiplyExpr 
+parseMultiplyExpr :: Context -> Parser Expr
+parseMultiplyExpr ctx = parseBinOp ctx AsteriskTok MultiplyExpr 
 
-parseAtom :: Parser Atom
-parseAtom toks = parseParenAtom toks <|> parseIntAtom toks <|> parseCharAtom toks
+parseAtom :: Context -> Parser Atom
+parseAtom ctx toks = parseVarAtom ctx toks <|> parseParenAtom ctx toks <|> parseIntAtom toks <|> parseCharAtom toks
 
-parseParenAtom :: Parser Atom
-parseParenAtom toks = parseCastAtom <|> parseSubExpr
+parseVarAtom :: Context -> Parser Atom
+parseVarAtom ctx (NatTok name : toks) = case (varInScope ctx name) of 
+    Just var -> Right $ (VarAtom var, toks)
+    Nothing -> Left Unexpected
+parseVarAtom _ _ = Left Unexpected
+
+parseParenAtom :: Context -> Parser Atom
+parseParenAtom ctx toks = parseCastAtom <|> parseSubExpr
     where
         parseCastAtom :: Either Error (Atom, [Token])
         --todo implement type casting
         parseCastAtom = Left Unexpected
 
         parseSubExpr :: Either Error (Atom, [Token])
-        parseSubExpr = ((consumeTok LParenTok toks) >>= parseExpr >>= (\(e, toks') -> (,) (ParenAtom e) <$> consumeTok RParenTok toks'))
+        parseSubExpr = ((consumeTok LParenTok toks) >>= parseExpr ctx >>= (\(e, toks') -> (,) (ParenAtom e) <$> consumeTok RParenTok toks'))
 
 parseIntAtom :: Parser Atom
 parseIntAtom (PrimIntTok x : toks) = Right $ (IntAtom x, toks)
@@ -189,3 +208,5 @@ consumeTok tok (t:ts)
     | tok == t = pure ts
     | otherwise = Left $ UnexpectedToken (show t)
 consumeTok _ _ = Left $ NoMoreTokens
+
+
