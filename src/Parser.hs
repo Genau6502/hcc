@@ -2,6 +2,8 @@ module Parser(parseAtom, parseExpr, parseStmt, parseBlock, parseDeclarator, pars
 
 import Types
 import ParseContext
+import TypeCheck
+
 type Parser a = [Token] -> Either Error (a, [Token])
 
 (<|>) :: Either a b -> Either a b -> Either a b
@@ -39,7 +41,7 @@ parseDeclarator ctx (NatTok x : toks) = do
         parsePost :: Parser (Type -> Type)
         parsePost (LSqParenTok:toks) = do
             (e, toks') <- parseExpr ctx toks
-            sizeExpr <- parseIntExpr e
+            sizeExpr <- parseIntExpr ctx toks' e
             toks'' <- consumeTok RSqParenTok toks'
             (outer, toks''') <- parsePost toks''
             return $ ((\base -> ArrayType (outer base) sizeExpr), toks''')
@@ -48,11 +50,6 @@ parseDeclarator ctx (NatTok x : toks) = do
             (outer, toks'') <- parsePost toks'
             return $ ((\base -> FunctionType argts (outer base)), toks'')
         parsePost toks = pure (id, toks)
-
-        parseIntExpr :: Expr -> Either Error Expr
-        parseIntExpr e = case (parseTypeOfExpr e) of
-            Left err -> Left err
-            Right _ -> Right e 
 parseDeclarator _ toks = Left $ InvalidType toks
 
 parseAbstractDeclarator :: Context -> Parser Type
@@ -81,7 +78,7 @@ parseAbstractDeclarator ctx (NatTok x : toks) = do
         parsePost :: Parser (Type -> Type)
         parsePost (LSqParenTok:toks) = do
             (e, toks') <- parseExpr ctx toks
-            sizeExpr <- parseIntExpr e
+            sizeExpr <- parseIntExpr ctx toks' e
             toks'' <- consumeTok RSqParenTok toks'
             (outer, toks''') <- parsePost toks''
             return $ ((\base -> ArrayType (outer base) sizeExpr), toks''')
@@ -90,13 +87,13 @@ parseAbstractDeclarator ctx (NatTok x : toks) = do
             (outer, toks'') <- parsePost toks'
             return $ ((\base -> FunctionType argts (outer base)), toks'')
         parsePost toks = pure (id, toks)
-
-        parseIntExpr :: Expr -> Either Error Expr
-        parseIntExpr e = case (parseTypeOfExpr e) of
-            Left err -> Left err
-            Right IntType -> Right e
-            Right t -> Left $ InvalidType (NatTok x : toks)
 parseAbstractDeclarator _ toks = Left $ InvalidType toks
+
+parseIntExpr :: Context -> [Token] -> Expr -> Either Error Expr
+parseIntExpr ctx toks e = case (parseTypeOfExpr ctx e) of
+    Left err -> Left err
+    Right IntType -> Right e
+    Right t -> Left $ InvalidType (NatTok "var_name" : toks)
 
 parseArgTypes :: Context -> Parser [Type]
 parseArgTypes ctx (RParenTok:toks) = pure ([], toks)
@@ -112,10 +109,6 @@ parseNextArgType ctx (CommaTok:toks) = do
     (ts, toks') <- parseArgTypes ctx toks
     return (ts, toks')
 parseNextArgType _ _ = Left $ Unexpected  
-
-parseTypeOfExpr :: Expr -> Either Error Type
-parseTypeOfExpr (AtomExpr (IntAtom _)) = pure IntType
-parseTypeOfExpr _ = Left Unexpected
 
 parseBlock :: Context -> Parser ([Stmt], Context)
 parseBlock vars toks = do

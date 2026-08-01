@@ -1,6 +1,14 @@
-module Compile(compileLine) where
+module Compile(compileBlock, compileStmt) where
 
 import Types
 
-compileStmt :: RegisterAllocation -> Stmt -> Instruction
-compileStmt
+compileStmt :: LiveVariables -> RegisterAllocation -> Stmt -> Instruction
+compileStmt ra stmt = undefined
+
+compileExprResult :: LiveVariables -> RegisterAllocation -> Expr -> Location
+compilation lvs ra expr
+    where
+        dummy = allocateDummyVar lvs ra
+
+
+exprToInstruction

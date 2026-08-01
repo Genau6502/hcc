@@ -1,4 +1,4 @@
-module Registers(allocateRegisters) where
+module Registers(allocateRegisters, allocateDummyVar) where
 
 import Data.Maybe
 import Types
@@ -39,7 +39,7 @@ clearDeadVars :: [Stmt] -> LiveVariables -> LiveVariables
 clearDeadVars stmts = filter (not.(isVariableLive stmts))
 
 isVariableLive :: [Stmt] -> Var -> Bool
-isVariableLive stmts (Var _ v) = any stmtContainsVar stmts
+isVariableLive stmts v = any stmtContainsVar stmts
     where
         stmtContainsVar :: Stmt -> Bool
         stmtContainsVar (DeclareAndAssignStmt _ e) = exprContainsVar e
@@ -50,10 +50,17 @@ isVariableLive stmts (Var _ v) = any stmtContainsVar stmts
         exprContainsVar (SubtractExpr a1 a2) = atomContainsVar a1 || atomContainsVar a2
         exprContainsVar (MultiplyExpr a1 a2) = atomContainsVar a1 || atomContainsVar a2
         exprContainsVar (AtomExpr a) = atomContainsVar a
+        exprContainsVar (MinusExpr a) = atomContainsVar a
 
         atomContainsVar :: Atom -> Bool
-        atomContainsVar (ValAtom v') = v==v'
+        atomContainsVar (VarAtom v') = v==v'
         atomContainsVar _ = False
+
+{-
+A dummy variable is one which is used for the compilation of a single statement, for example when evaluating expressions
+-}
+allocateDummyVar :: LiveVariables -> RegisterAllocation -> Location
+allocateDummyVar = allocateRegister
 
 {-
 

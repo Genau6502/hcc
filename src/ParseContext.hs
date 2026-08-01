@@ -9,10 +9,7 @@ putVarInScope cs var = var:cs
 
 --todo: consider if we need to handle errors in this
 removeVarFromScope :: Context -> Var -> Context
-removeVarFromScope (c:cs) var
-    | c == var = cs
-    | otherwise = removeVarFromScope cs var
-removeVarFromScope [] _ = []
+removeVarFromScope cs var = filter (/=var) cs
 
 varInScope :: Context -> String -> Maybe Var
 varInScope ((Var t n):cs) name
