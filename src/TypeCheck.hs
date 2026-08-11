@@ -1,4 +1,4 @@
-module TypeCheck(parseTypeOfExpr, typeCheckStmt) where
+module TypeCheck(parseTypeOfExpr, typeCheckStmt, typeOfAtom, typeOfExpr) where
 
 import Types
 import ParseContext
@@ -29,3 +29,16 @@ parseTypeOfAtom _ (CharAtom _) = pure CharType
 parseTypeOfAtom ctx (ParenAtom e) = parseTypeOfExpr ctx e
 parseTypeOfAtom _ (CastAtom t e) = pure t
 parseTypeOfAtom _ _ = Left $ Unexpected
+
+typeOfAtom :: Context -> Atom -> Type
+typeOfAtom _ (IntAtom _) = IntType
+typeOfAtom _ (VarAtom (Var t _)) = t
+typeOfAtom _ (CharAtom _) = CharType
+typeOfAtom ctx (ParenAtom e) = typeOfExpr ctx e
+typeOfAtom _ (CastAtom t e) = t
+
+typeOfExpr :: Context -> Expr -> Type
+typeOfExpr ctx (AddExpr x y) = typeOfAtom ctx x
+typeOfExpr ctx (SubtractExpr x y) = typeOfAtom ctx x
+typeOfExpr ctx (MultiplyExpr x y) = typeOfAtom ctx x
+typeOfExpr ctx (AtomExpr x) = typeOfAtom ctx x

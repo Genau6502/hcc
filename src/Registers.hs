@@ -1,4 +1,4 @@
-module Registers(allocateRegisters, allocateDummyVar) where
+module Registers(allocateRegisters, allocateDummyVar, locationOf, LiveVariables) where
 
 import Data.Maybe
 import Types
@@ -22,6 +22,10 @@ allocateRegisters = allocateRegisters' [] []
 processStmt :: Stmt -> LiveVariables -> RegisterAllocation -> (LiveVariables, RegisterAllocation)
 processStmt (DeclareAndAssignStmt v _) lvs ra = (v:lvs, ((v, allocateRegister lvs ra):ra))
 
+-- Pre: variable is live
+locationOf :: Var -> RegisterAllocation -> Location
+locationOf ra v = let (Just x) = lookup ra v in x
+
 allocateRegister :: LiveVariables -> RegisterAllocation -> Location
 allocateRegister lvs ra = selectLocation registers
     where
@@ -39,6 +43,7 @@ clearDeadVars :: [Stmt] -> LiveVariables -> LiveVariables
 clearDeadVars stmts = filter (not.(isVariableLive stmts))
 
 isVariableLive :: [Stmt] -> Var -> Bool
+isVariableLive _ DummyVar = False
 isVariableLive stmts v = any stmtContainsVar stmts
     where
         stmtContainsVar :: Stmt -> Bool
@@ -58,9 +63,11 @@ isVariableLive stmts v = any stmtContainsVar stmts
 
 {-
 A dummy variable is one which is used for the compilation of a single statement, for example when evaluating expressions
+
+TODO: do this properly
 -}
-allocateDummyVar :: LiveVariables -> RegisterAllocation -> Location
-allocateDummyVar = allocateRegister
+allocateDummyVar :: LiveVariables -> RegisterAllocation -> (Location, RegisterAllocation)
+allocateDummyVar lvs ra = let v = DummyVar in (allocateRegister lvs ra, ra)
 
 {-
 

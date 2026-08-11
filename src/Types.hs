@@ -1,6 +1,6 @@
 module Types where
 
-data Var = Var Type String | DummyVar Int
+data Var = Var Type String | DummyVar
     deriving (Eq, Show)
 
 data Type = PointerType Type | StructType String | FunctionType [Type] Type | ArrayType Type Expr | IntType | CharType
@@ -22,9 +22,6 @@ data Token = LBraceTok | RBraceTok | SemiColonTok | EqualsTok | LParenTok | RPar
     deriving (Eq, Show)
 
 data Location = R12 | R13 | R14 | R15 | Stack Int | Temp Int
-    deriving (Eq, Show)
-
-data InstructionSize = Q | L
     deriving (Eq, Show)
 
 type RegisterAllocation = [(Var, Location)]
