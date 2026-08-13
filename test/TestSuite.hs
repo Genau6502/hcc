@@ -6,9 +6,10 @@ import TokeniserTest
 import ParserTest
 import RegisterTest
 import TypeCheckTest
+import CompileTest
 
 tests :: [TestGroup]
-tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseStmtTests, parseBlockTests, parseDeclaratorTests, parseAbstractDeclaratorTests, allocateRegistersTests, typeCheckTests
+tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseStmtTests, parseBlockTests, parseDeclaratorTests, parseAbstractDeclaratorTests, allocateRegistersTests, typeCheckTests, compileBlockTests
     ]
 
 runTests :: IO ()

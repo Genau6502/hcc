@@ -1,10 +1,10 @@
-module Registers(allocateRegisters, allocateDummyVar, locationOf, LiveVariables) where
+module Registers(allocateRegisters, allocateDummyVar, locationOf, LiveVariables, clearDeadVars) where
 
 import Data.Maybe
 import Types
 
 registers :: [Location]
-registers = [R12, R13, R14, R15]
+registers = [R12, R13, R14, R15, DummyReg 1, DummyReg 2]
 
 type LiveVariables = [Var]
 
