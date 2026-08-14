@@ -11,16 +11,19 @@ import ParseContext
     Register allocation is done at the block level
 -}
 compileBlock :: LiveVariables -> RegisterAllocation -> [Stmt] -> [Instruction]
-compileBlock lvs ra stmts = compileBlock' stmts
+compileBlock outerLvs ra stmts = compileBlock' outerLvs stmts
     where
-        blockra = allocateRegistersForBlock lvs ra stmts
-
-        compileBlock' :: [Stmt] -> [Instruction]
-        compileBlock' (stmt:stmts) = let
+        blockra = allocateRegistersForBlock outerLvs ra stmts
+        compileBlock' :: LiveVariables -> [Stmt] -> [Instruction]
+        compileBlock' lvs (stmt:stmts) = let
             is = compileStmt lvs blockra stmt
-            lvs' = clearDeadVars stmts lvs
-            in is ++ compileBlock lvs' blockra stmts
-        compileBlock' _ = []
+            lvs' = addLiveVariables stmt lvs
+            lvs'' = clearDeadVars stmts outerLvs lvs'
+            in is ++ compileBlock' lvs'' stmts
+        compileBlock' _ _ = []
+
+addLiveVariables :: Stmt -> LiveVariables -> LiveVariables
+addLiveVariables (DeclareAndAssignStmt v _) lvs = (v:lvs)
 
 compileStmt :: LiveVariables -> RegisterAllocation -> Stmt -> [Instruction]
 compileStmt lvs ra (DeclareAndAssignStmt v expr) = let

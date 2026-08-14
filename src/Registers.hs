@@ -23,14 +23,14 @@ type LiveVariables = [Var]
 
 --todo make this more sensible - use internal state to tell when variables go in and out of scope
 allocateRegistersForBlock :: LiveVariables -> RegisterAllocation -> [Stmt] -> RegisterAllocation
-allocateRegistersForBlock = allocateRegisters'
+allocateRegistersForBlock outerLvs = allocateRegisters' outerLvs
     where
         allocateRegisters' :: LiveVariables -> RegisterAllocation -> [Stmt] -> RegisterAllocation
         allocateRegisters' lvs ra [] = ra
         allocateRegisters' lvs ra (s:stmts)
             = let
                 (lvs', ra') = processStmt s lvs ra
-                lvs'' = clearDeadVars stmts lvs'
+                lvs'' = clearDeadVars stmts outerLvs lvs'
                 in allocateRegisters' lvs'' ra' stmts
 
 processStmt :: Stmt -> LiveVariables -> RegisterAllocation -> (LiveVariables, RegisterAllocation)
@@ -53,8 +53,8 @@ lookupUnsafe x ((y, z):xs)
     | x == y = z
     | otherwise = lookupUnsafe x xs
 
-clearDeadVars :: [Stmt] -> LiveVariables -> LiveVariables
-clearDeadVars stmts = filter (isVariableLive stmts)
+clearDeadVars :: [Stmt] -> LiveVariables -> LiveVariables -> LiveVariables
+clearDeadVars stmts outerLvs = filter (\v -> isVariableLive stmts v || elem v outerLvs)
 
 isVariableLive :: [Stmt] -> Var -> Bool
 isVariableLive _ (DummyVar _) = False
