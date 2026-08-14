@@ -54,7 +54,7 @@ lookupUnsafe x ((y, z):xs)
     | otherwise = lookupUnsafe x xs
 
 clearDeadVars :: [Stmt] -> LiveVariables -> LiveVariables
-clearDeadVars stmts = filter (not.(isVariableLive stmts))
+clearDeadVars stmts = filter (isVariableLive stmts)
 
 isVariableLive :: [Stmt] -> Var -> Bool
 isVariableLive _ (DummyVar _) = False

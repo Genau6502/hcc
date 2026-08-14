@@ -54,7 +54,7 @@ compileBlockTests = TestGroup
                     lvs = [vX, vY, vZ]
                 in
                     compileBlock lvs ra stmts 
-                    --> [MOV_I L 2 R13, MOV L R13 R14,MOV_I L 3 R12,MOV L R12 R13,MOV L R13 R12]
+                    --> [MOV_I L 2 R15, MOV L R15 R14,MOV_I L 3 R13,MOV L R13 R12,MOV L R12 R13]
             , "(5) Statement requiring two dummy variables (binary expression)" -: 
                 let 
                     vZ = Var IntType "z"
@@ -86,7 +86,7 @@ compileBlockTests = TestGroup
                 let 
                     vX = Var IntType "x"
                     vY = Var IntType "y"
-]                    stmts = [DeclareAndAssignStmt vY (MultiplyExpr (IntAtom 4) (VarAtom vX))]
+                    stmts = [DeclareAndAssignStmt vY (MultiplyExpr (IntAtom 4) (VarAtom vX))]
                     
                     -- x is live in R12, y is allocated to R13
                     ra = [(vX, R12), (vY, R13)]
