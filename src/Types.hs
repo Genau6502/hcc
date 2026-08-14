@@ -1,6 +1,6 @@
 module Types where
 
-data Var = Var Type String | DummyVar
+data Var = Var Type String | DummyVar Int
     deriving (Eq, Show)
 
 data Type = PointerType Type | StructType String | FunctionType [Type] Type | ArrayType Type Expr | IntType | CharType
@@ -21,7 +21,7 @@ data Error = Unexpected | IntegerParseError String | UnexpectedToken String | No
 data Token = LBraceTok | RBraceTok | SemiColonTok | EqualsTok | LParenTok | RParenTok | PrimIntTok Int | CharTok Char | VoidTok | StructTok | UnionTok | NatTok String | CommaTok | AsteriskTok | AmpersandTok | WhileTok | ForTok | ReturnTok | PlusTok | MinusTok | DivTok | GreaterTok | LessTok | StaticTok | DecimalTok | SizeOfTok | LSqParenTok | RSqParenTok
     deriving (Eq, Show)
 
-data Location = R12 | R13 | R14 | R15 | DummyReg Int | Stack Int | Temp Int
+data Location = R12 | R13 | R14 | R15 | DummyReg Int | Stack Int
     deriving (Eq, Show)
 
 type RegisterAllocation = [(Var, Location)]

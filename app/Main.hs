@@ -4,6 +4,9 @@ import System.Environment (getArgs)
 import Tokeniser
 import Parser
 import Registers
+import Instructions
+import Compile
+import TypeCheck
 
 main :: IO ()
 main = do

@@ -8,6 +8,6 @@ allocateRegistersTests :: TestGroup
 allocateRegistersTests = TestGroup 
     (
         "Register allocation tests"
-        , [   "(1)" -: allocateRegisters [DeclareAndAssignStmt (Var IntType "x") (AtomExpr (IntAtom 2)), DeclareAndAssignStmt (Var IntType "y") (AtomExpr (IntAtom 1))] --> [(Var IntType "y",R13),(Var IntType "x",R12)]
+        , [   "(1)" -: allocateRegistersForBlock [] [] [DeclareAndAssignStmt (Var IntType "x") (AtomExpr (IntAtom 2)), DeclareAndAssignStmt (Var IntType "y") (AtomExpr (IntAtom 1))] --> [(Var IntType "y",R13),(Var IntType "x",R12)]
         ]
     )
