@@ -4,50 +4,60 @@ import Types
 import Instructions
 import Registers
 import TypeCheck
-import ParseContext
 
 {-
     This wiil use the existing register allocation and preserve it. Any variables in scope within the block are only in the scope of the block.
     Register allocation is done at the block level
 -}
-compileBlock :: LiveVariables -> RegisterAllocation -> [Stmt] -> [Instruction]
-compileBlock outerLvs ra stmts = compileBlock' outerLvs stmts
+compileBlock :: LiveVariables -> RegisterAllocation -> Int -> Block -> ([Instruction], Int)
+compileBlock outerLvs ra i stmts = compileBlock' outerLvs i stmts
     where
         blockra = allocateRegistersForBlock outerLvs ra stmts
-        compileBlock' :: LiveVariables -> [Stmt] -> [Instruction]
-        compileBlock' lvs (stmt:stmts) = let
-            is = compileStmt lvs blockra stmt
+        compileBlock' :: LiveVariables -> Int -> Block -> ([Instruction], Int)
+        compileBlock' lvs i (stmt:stmts) = let
+            (is, i') = compileStmt lvs blockra i stmt
             lvs' = addLiveVariables stmt lvs
             lvs'' = clearDeadVars stmts outerLvs lvs'
-            in is ++ compileBlock' lvs'' stmts
-        compileBlock' _ _ = []
+            (is', i'') = compileBlock' lvs'' i' stmts
+            in (is ++ is', i'')
+        compileBlock' _ i _ = ([], i)
 
 addLiveVariables :: Stmt -> LiveVariables -> LiveVariables
 addLiveVariables (DeclareAndAssignStmt v _) lvs = (v:lvs)
 
-compileStmt :: LiveVariables -> RegisterAllocation -> Stmt -> [Instruction]
-compileStmt lvs ra (DeclareAndAssignStmt v expr) = let
+compileStmt :: LiveVariables -> RegisterAllocation -> Int -> Stmt -> ([Instruction], Int)
+compileStmt lvs ra i (DeclareAndAssignStmt v expr) = let
             (is, loc) = compileExpr lvs ra expr
-            in is <**> MOV (sizeOf (typeOfExpr lvs expr)) loc (locationOf v ra)
+            in (is <++> MOV (sizeOf (typeOfExpr lvs expr)) loc (locationOf v ra), i)
+compileStmt lvs ra i (WhileStmt expr block) = let
+            condLabel = Label i
+            condSize = (sizeOf (typeOfExpr lvs expr))
+            endLabel = Label (i+1)
+            (cond, res) = compileExpr lvs ra expr
+            (body, i') = compileBlock lvs ra (i+2) block
+
+            -- If the condition evaluates to false (zero), then we jump to the end of the loop
+            -- At the end of the block, we jump back to condition evaluation
+            in ((condLabel : cond <++> (TEST condSize res res) <++> (JE endLabel) ++ body <++> (JMP condLabel) <++> endLabel), i')
 
 compileAtom :: LiveVariables -> RegisterAllocation -> Atom -> ([Instruction], Location, LiveVariables, RegisterAllocation)
 compileAtom lvs ra (VarAtom v) = ([], locationOf v ra, lvs, ra)
-compileAtom lvs ra (IntAtom i) = let (loc, ra', lvs') = allocateDummyVar lvs ra in ([MOV_I (sizeOf IntType) i loc], loc, lvs', ra')
+compileAtom lvs ra (IntAtom i) = let (loc, ra', lvs') = allocateDummyVar lvs ra in ([MOV (sizeOf IntType) (Immediate i) loc], loc, lvs', ra')
 
 compileExpr :: LiveVariables -> RegisterAllocation -> Expr -> ([Instruction], Location)
 compileExpr lvs ra (AddExpr a1 a2) = let
     (is1, loc1, lvs1, ra1) = compileAtom lvs ra a1
     (is2, loc2, lvs2, _) = compileAtom lvs1 ra1 a2
-    in (is1 ++ is2 <**> (ADD (sizeOf (typeOfAtom lvs a1)) loc1 loc2 loc1), loc1)
+    in (is1 ++ is2 <++> (ADD (sizeOf (typeOfAtom lvs a1)) loc1 loc2 loc1), loc1)
 compileExpr lvs ra (SubtractExpr a1 a2) = let
     (is1, loc1, lvs1, ra1) = compileAtom lvs ra a1
     (is2, loc2, lvs2, _) = compileAtom lvs1 ra1 a2
-    in (is1 ++ is2 <**> (SUB (sizeOf (typeOfAtom lvs a1)) loc1 loc2 loc1), loc1)
+    in (is1 ++ is2 <++> (SUB (sizeOf (typeOfAtom lvs a1)) loc1 loc2 loc1), loc1)
 --todo handle this signed vs unsigned
 compileExpr lvs ra (MultiplyExpr a1 a2) = let
     (is1, loc1, lvs1, ra1) = compileAtom lvs ra a1
     (is2, loc2, lvs2, _) = compileAtom lvs1 ra1 a2
-    in (is1 ++ is2 <**> (IMUL (sizeOf (typeOfAtom lvs a1)) loc1 loc2 loc1), loc1)
+    in (is1 ++ is2 <++> (IMUL (sizeOf (typeOfAtom lvs a1)) loc1 loc2 loc1), loc1)
 compileExpr lvs ra (AtomExpr a) = let (is, loc, _, _) = compileAtom lvs ra a in (is, loc)
 
 typeOfAtom :: LiveVariables -> Atom -> Type
@@ -63,5 +73,5 @@ typeOfExpr lvs (SubtractExpr x y) = typeOfAtom lvs x
 typeOfExpr lvs (MultiplyExpr x y) = typeOfAtom lvs x
 typeOfExpr lvs (AtomExpr x) = typeOfAtom lvs x
 
-(<**>) :: [a] -> a -> [a]
-xs <**> x = xs ++ [x]
+(<++>) :: [a] -> a -> [a]
+xs <++> x = xs ++ [x]

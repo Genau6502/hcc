@@ -9,11 +9,11 @@ import Instructions
 compileBlockTests :: TestGroup
 compileBlockTests = TestGroup 
     (
-        "compileBlock tests (DeclareAndAssignStmt only)"
+        "Compile tests"
         , [   
               "(1) Empty block compilation" -: 
-                compileBlock [] [] [] 
-                --> []
+                compileBlock [] [] 0 [] 
+                --> ([], 0)
 
             , "(2) Single declare and assign statement" -: 
                 let 
@@ -21,8 +21,8 @@ compileBlockTests = TestGroup
                     stmts = [DeclareAndAssignStmt vX (AtomExpr (IntAtom 0))]
                     lvs = []
                 in
-                    compileBlock lvs (allocateRegistersForBlock lvs [] stmts) stmts 
-                    --> [MOV_I L 0 R12,MOV L R12 R12]
+                    compileBlock lvs (allocateRegistersForBlock lvs [] stmts) 0 stmts 
+                    --> ([MOV L (Immediate 0) R12,MOV L R12 R12], 0)
 
             , "(3) Sequential statements with live variable carried over" -: 
                 let 
@@ -35,8 +35,8 @@ compileBlockTests = TestGroup
                             ]
                     ra = allocateRegistersForBlock lvs [] stmts
                 in
-                    compileBlock lvs ra stmts 
-                    --> [MOV_I L 2 R12,MOV L R12 R12,MOV L R12 R13]
+                    compileBlock lvs ra 0 stmts 
+                    --> ([MOV L (Immediate 2) R12,MOV L R12 R12,MOV L R12 R13], 0)
 
             , "(4) Sequential statements where a variable dies immediately" -: 
                 let 
@@ -53,8 +53,9 @@ compileBlockTests = TestGroup
                     ra = allocateRegistersForBlock [] [] stmts
                     lvs = [vX, vY, vZ]
                 in
-                    compileBlock lvs ra stmts 
-                    --> [MOV_I L 2 R13, MOV L R13 R14,MOV_I L 3 R13,MOV L R13 R15,MOV L R15 R12]
+                    compileBlock lvs ra 0 stmts 
+                    --> ([MOV L (Immediate 2) R13, MOV L R13 R14,MOV L (Immediate 3) R13,MOV L R13 R15,MOV L R15 R12], 0)
+
             , "(5) Statement requiring two dummy variables (binary expression)" -: 
                 let 
                     vZ = Var IntType "z"
@@ -64,8 +65,9 @@ compileBlockTests = TestGroup
                     lvs = [] 
                     ra = allocateRegistersForBlock lvs [] stmts
                 in
-                    compileBlock lvs ra stmts 
-                    --> [MOV_I L 2 R12,MOV_I L 3 R13,ADD L R12 R13 R12,MOV L R12 R12]
+                    compileBlock lvs ra 0 stmts 
+                    --> ([MOV L (Immediate 2) R12,MOV L (Immediate 3) R13,ADD L R12 R13 R12,MOV L R12 R12], 0)
+
             , "(6) Subtraction with two literals" -: 
                 let 
                     vX = Var IntType "x"
@@ -75,12 +77,13 @@ compileBlockTests = TestGroup
                     ra = [(vX, R12)]
                     lvs = [] 
                 in
-                    compileBlock lvs ra stmts 
-                    --> [ MOV_I L 5 R12
-                        , MOV_I L 3 R13
-                        , SUB L R12 R13 R12
-                        , MOV L R12 R12 
-                        ]
+                    compileBlock lvs ra 0 stmts 
+                    --> ( [ MOV L (Immediate 5) R12
+                          , MOV L (Immediate 3) R13
+                          , SUB L R12 R13 R12
+                          , MOV L R12 R12 
+                          ]
+                        , 0 )
 
             , "(7) Multiplication of literal and live variable" -: 
                 let 
@@ -92,10 +95,54 @@ compileBlockTests = TestGroup
                     ra = [(vX, R12), (vY, R13)]
                     lvs = [vX] 
                 in
-                    compileBlock lvs ra stmts 
-                    --> [ MOV_I L 4 R13
-                        , IMUL L R13 R12 R13
-                        , MOV L R13 R13
-                        ]
+                    compileBlock lvs ra 0 stmts 
+                    --> ( [ MOV L (Immediate 4) R13
+                          , IMUL L R13 R12 R13
+                          , MOV L R13 R13
+                          ]
+                        , 0 )
+
+            , "While loop with literal condition and empty body" -: 
+                let 
+                    -- while (1) {}
+                    expr = AtomExpr (IntAtom 1)
+                    block = []
+                    lvs = []
+                    ra = []
+                    startLabelId = 0
+                in
+                    compileStmt lvs ra startLabelId (WhileStmt expr block) 
+                    --> ( [ Label 0
+                          , MOV L (Immediate 1) R12 -- Assuming IntAtom 1 allocates dummy R12
+                          , TEST L R12 R12
+                          , JE (Label 1)
+                          -- (Body is empty, so no instructions here)
+                          , JMP (Label 0)
+                          , Label 1
+                          ]
+                        , 2 ) -- Block consumed 0 labels, so it returns i+2
+
+            , "While loop with live variable condition and assignment body" -: 
+                let 
+                    -- while (x) { int y = 2; }
+                    vX = Var IntType "x"
+                    vY = Var IntType "y"
+                    expr = AtomExpr (VarAtom vX)
+                    block = [DeclareAndAssignStmt vY (AtomExpr (IntAtom 2))]
+                    
+                    lvs = [vX]
+                    ra = [(vX, R12)]
+                    startLabelId = 4
+                in
+                    compileStmt lvs ra startLabelId (WhileStmt expr block) 
+                    --> ( [ Label 4
+                          , TEST L R12 R12
+                          , JE (Label 5)
+                          , MOV L (Immediate 2) R13
+                          , MOV L R13 R13
+                          , JMP (Label 4)
+                          , Label 5
+                          ]
+                        , 6 )
         ]
     )
