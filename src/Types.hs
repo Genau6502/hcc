@@ -15,6 +15,8 @@ data Expr = AddExpr Atom Atom | MinusExpr Atom | SubtractExpr Atom Atom | Multip
 data Stmt = DeclareAndAssignStmt Var Expr | AssignStmt Var Expr | ReturnStmt Expr
     deriving (Eq, Show)
 
+type Block = [Stmt]
+
 data Error = Unexpected | IntegerParseError String | UnexpectedToken String | NoMoreTokens | InvalidChar String | ExpectedChar Token | ExpectedInt Token | InvalidType [Token] | VariableAlreadyDeclared String | MismatchType Type Type
     deriving (Eq, Show)
 

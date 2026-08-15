@@ -41,6 +41,7 @@ parseStmtTests = TestGroup
             "int x = 2 + 2;" -: parseStmt emptyContext [ NatTok "int", NatTok "x", EqualsTok, PrimIntTok 2, PlusTok, PrimIntTok 2, SemiColonTok ] --> Right ((DeclareAndAssignStmt (Var IntType "x") (AddExpr (IntAtom 2) (IntAtom 2)), [Var IntType "x"]), [])
         ,   "int **x = 0;" -: parseStmt emptyContext [NatTok "int",AsteriskTok,AsteriskTok,NatTok "x",EqualsTok,PrimIntTok 0,SemiColonTok] --> Right ((DeclareAndAssignStmt (Var (PointerType (PointerType IntType)) "x") (AtomExpr (IntAtom 0)), [Var (PointerType (PointerType IntType)) "x"]), [])
         ,   "return 0;" -: parseStmt emptyContext [ReturnTok,PrimIntTok 0,SemiColonTok] --> Right ((ReturnStmt (AtomExpr (IntAtom 0)), []), [])
+        ,   "while (1) { return 0; }" -: parseStmt emptyContext [WhileTok,LParenTok,PrimIntTok 1,RParenTok,LBraceTok,ReturnTok,PrimIntTok 0,SemiColonTok,RBraceTok] --> Right ((WhileStmt (AtomExpr (IntAtom 1)) [ReturnStmt (AtomExpr (IntAtom 0))], []), [])
         ]
     )
 

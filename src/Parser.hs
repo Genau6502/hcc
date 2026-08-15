@@ -122,7 +122,7 @@ parseBlock vars toks = do
             return ((stmt:stmts, ctx3), toks3)
 
 parseStmt :: Context -> Parser (Stmt, Context)
-parseStmt ctx toks = parseLineStmt
+parseStmt ctx toks = parseWhileLoop <|> parseLineStmt
     where
         parseLineStmt :: Either Error ((Stmt, Context), [Token])
         parseLineStmt = do  (stmtctx, toks') <- parseDeclareAndAssignStmt <|> parseReturnStmt
@@ -136,6 +136,15 @@ parseStmt ctx toks = parseLineStmt
             (expr, toks3) <- parseExpr ctx toks2
             return (let var = (Var t name) in ((DeclareAndAssignStmt var expr, putVarInScope ctx var), toks3))
         
+        parseWhileLoop :: Either Error ((Stmt, Context), [Token])
+        parseWhileLoop = do
+            toks1 <- consumeTok WhileTok toks
+            toks2 <- consumeTok LParenTok toks1
+            (e, toks3) <- parseExpr ctx toks2
+            toks4 <- consumeTok RParenTok toks3
+            ((block, ctx'), toks5) <- parseBlock ctx toks4
+            return $ ((WhileStmt e block, ctx'), toks5)
+
         parseReturnStmt :: Either Error ((Stmt, Context), [Token])
         parseReturnStmt = do
             toks' <- consumeTok ReturnTok toks

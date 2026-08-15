@@ -2,6 +2,7 @@ module TypeCheck(parseTypeOfExpr, typeCheckStmt) where
 
 import Types
 import ParseContext
+import Control.Monad (unless)
 
 (<=>) :: Either Error Type -> Either Error Type -> Either Error Type
 Right x <=> Right y
@@ -10,14 +11,21 @@ Right x <=> Right y
 _ <=> _ = Left Unexpected
 
 typeCheckStmt :: Context -> Stmt -> Either Error ()
-typeCheckStmt ctx (DeclareAndAssignStmt (Var t _) e) = ((==t) <$> parseTypeOfExpr ctx e) >>= (const $ pure ())
-typeCheckStmt ctx (AssignStmt (Var t _) e) = ((==t) <$> parseTypeOfExpr ctx e) >>= (const $ pure ())
+typeCheckStmt ctx (DeclareAndAssignStmt (Var t _) e) = do
+    exprT <- parseTypeOfExpr ctx e
+    unless (exprT == t) $ Left (MismatchType t exprT)
+typeCheckStmt ctx (AssignStmt (Var t _) e) = do
+    exprT <- parseTypeOfExpr ctx e
+    unless (exprT == t) $ Left (MismatchType t exprT)
+typeCheckStmt ctx (WhileStmt e block) = do
+    exprT <- parseTypeOfExpr ctx e
+    unless (exprT == IntType) $ Left (MismatchType IntType exprT)
 
 parseTypeOfExpr :: Context -> Expr -> Either Error Type
 parseTypeOfExpr ctx (AddExpr x y) = atomSameType ctx x y
 parseTypeOfExpr ctx (SubtractExpr x y) = atomSameType ctx x y
 parseTypeOfExpr ctx (MultiplyExpr x y) = atomSameType ctx x y
-parseTypeOfExpr ctx (AtomExpr x) = parseTypeOfAtom ctx x
+parseTypeOfExpr ctx (AtomExpr a) = parseTypeOfAtom ctx a
 
 atomSameType :: Context -> Atom -> Atom -> Either Error Type
 atomSameType ctx x y = parseTypeOfAtom ctx x <=> parseTypeOfAtom ctx y
