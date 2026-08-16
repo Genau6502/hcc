@@ -20,12 +20,17 @@ typeCheckStmt ctx (AssignStmt (Var t _) e) = do
 typeCheckStmt ctx (WhileStmt e block) = do
     exprT <- parseTypeOfExpr ctx e
     unless (exprT == IntType) $ Left (MismatchType IntType exprT)
+typeCheckStmt ctx (ExprStmt e) = (const ()) <$> parseTypeOfExpr ctx e
 
 parseTypeOfExpr :: Context -> Expr -> Either Error Type
 parseTypeOfExpr ctx (AddExpr x y) = atomSameType ctx x y
 parseTypeOfExpr ctx (SubtractExpr x y) = atomSameType ctx x y
 parseTypeOfExpr ctx (MultiplyExpr x y) = atomSameType ctx x y
 parseTypeOfExpr ctx (AtomExpr a) = parseTypeOfAtom ctx a
+parseTypeOfExpr ctx (AssignExpr (Var t _) e) = do
+    exprT <- parseTypeOfExpr ctx e
+    unless (exprT == t) $ Left (MismatchType t exprT)
+    return t
 
 atomSameType :: Context -> Atom -> Atom -> Either Error Type
 atomSameType ctx x y = parseTypeOfAtom ctx x <=> parseTypeOfAtom ctx y

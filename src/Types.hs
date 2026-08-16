@@ -9,10 +9,10 @@ data Type = PointerType Type | StructType String | FunctionType [Type] Type | Ar
 data Atom = IntAtom Int | CharAtom Char | ParenAtom Expr | CastAtom Type Expr | VarAtom Var
     deriving (Eq, Show)
 
-data Expr = AddExpr Atom Atom | MinusExpr Atom | SubtractExpr Atom Atom | MultiplyExpr Atom Atom | AtomExpr Atom | ImplicitExpr {- This is used for array initialisation where size can be inferred later on-}
+data Expr = AddExpr Atom Atom | MinusExpr Atom | SubtractExpr Atom Atom | MultiplyExpr Atom Atom | AtomExpr Atom | AssignExpr Var Expr | ImplicitExpr {- This is used for array initialisation where size can be inferred later on-}
     deriving (Eq, Show)
 
-data Stmt = DeclareAndAssignStmt Var Expr | AssignStmt Var Expr | ReturnStmt Expr | WhileStmt Expr Block
+data Stmt = DeclareAndAssignStmt Var Expr | AssignStmt Var Expr | ReturnStmt Expr | WhileStmt Expr Block | ExprStmt Expr
     deriving (Eq, Show)
 
 type Block = [Stmt]

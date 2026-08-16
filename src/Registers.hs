@@ -35,6 +35,8 @@ allocateRegistersForBlock outerLvs = allocateRegisters' outerLvs
 
 processStmt :: Stmt -> LiveVariables -> RegisterAllocation -> (LiveVariables, RegisterAllocation)
 processStmt (DeclareAndAssignStmt v _) lvs ra = (v:lvs, ((v, allocateRegister lvs ra):ra))
+processStmt (ExprStmt (AssignExpr v e)) lvs ra = (lvs, ra)-- (v:lvs, ((v, allocateRegister lvs ra):ra))
+processStmt _ lvs ra = (lvs, ra)
 
 -- Pre: variable is live
 locationOf :: Var -> RegisterAllocation -> Location
@@ -63,6 +65,7 @@ isVariableLive stmts v = any stmtContainsVar stmts
         stmtContainsVar :: Stmt -> Bool
         stmtContainsVar (DeclareAndAssignStmt _ e) = exprContainsVar e
         stmtContainsVar (ReturnStmt e) = exprContainsVar e
+        stmtContainsVar (ExprStmt e) = exprContainsVar e
 
         exprContainsVar :: Expr -> Bool
         exprContainsVar (AddExpr a1 a2) = atomContainsVar a1 || atomContainsVar a2
@@ -70,6 +73,7 @@ isVariableLive stmts v = any stmtContainsVar stmts
         exprContainsVar (MultiplyExpr a1 a2) = atomContainsVar a1 || atomContainsVar a2
         exprContainsVar (AtomExpr a) = atomContainsVar a
         exprContainsVar (MinusExpr a) = atomContainsVar a
+        exprContainsVar (AssignExpr v' e) = v == v' || exprContainsVar e
 
         atomContainsVar :: Atom -> Bool
         atomContainsVar (VarAtom v') = v==v'

@@ -56,53 +56,10 @@ compileBlockTests = TestGroup
                     compileBlock lvs ra 0 stmts 
                     --> ([MOV L (Immediate 2) R13, MOV L R13 R14,MOV L (Immediate 3) R13,MOV L R13 R15,MOV L R15 R12], 0)
 
-            , "(5) Statement requiring two dummy variables (binary expression)" -: 
-                let 
-                    vZ = Var IntType "z"
-                    stmts = [DeclareAndAssignStmt vZ (AddExpr (IntAtom 2) (IntAtom 3))]
-                    
-                    -- Let's say z gets mapped to R12.
-                    lvs = [] 
-                    ra = allocateRegistersForBlock lvs [] stmts
-                in
-                    compileBlock lvs ra 0 stmts 
-                    --> ([MOV L (Immediate 2) R12,MOV L (Immediate 3) R13,ADD L R12 R13 R12,MOV L R12 R12], 0)
-
-            , "(6) Subtraction with two literals" -: 
-                let 
-                    vX = Var IntType "x"
-                    stmts = [DeclareAndAssignStmt vX (SubtractExpr (IntAtom 5) (IntAtom 3))]
-                    
-                    -- Assuming x gets allocated to R12
-                    ra = [(vX, R12)]
-                    lvs = [] 
-                in
-                    compileBlock lvs ra 0 stmts 
-                    --> ( [ MOV L (Immediate 5) R12
-                          , MOV L (Immediate 3) R13
-                          , SUB L R12 R13 R12
-                          , MOV L R12 R12 
-                          ]
-                        , 0 )
-
-            , "(7) Multiplication of literal and live variable" -: 
-                let 
-                    vX = Var IntType "x"
-                    vY = Var IntType "y"
-                    stmts = [DeclareAndAssignStmt vY (MultiplyExpr (IntAtom 4) (VarAtom vX))]
-                    
-                    -- x is live in R12, y is allocated to R13
-                    ra = [(vX, R12), (vY, R13)]
-                    lvs = [vX] 
-                in
-                    compileBlock lvs ra 0 stmts 
-                    --> ( [ MOV L (Immediate 4) R13
-                          , IMUL L R13 R12 R13
-                          , MOV L R13 R13
-                          ]
-                        , 0 )
-
-            , "While loop with literal condition and empty body" -: 
+            , "(5) Statement requiring two dummy variables (binary expression)" -: compileBlock [] (allocateRegistersForBlock [] [] [DeclareAndAssignStmt (Var IntType "z") (AddExpr (IntAtom 2) (IntAtom 3))]) 0 [DeclareAndAssignStmt (Var IntType "z") (AddExpr (IntAtom 2) (IntAtom 3))] --> ([MOV L (Immediate 2) R12, MOV L (Immediate 3) R13, ADD L R12 R13 R14, MOV L R14 R12], 0)
+            , "(6) Subtraction with two literals" -: compileBlock [] [(Var IntType "x", R12)] 0 [DeclareAndAssignStmt (Var IntType "x") (SubtractExpr (IntAtom 5) (IntAtom 3))] --> ([MOV L (Immediate 5) R12, MOV L (Immediate 3) R13, SUB L R12 R13 R14, MOV L R14 R12], 0)
+            , "(7) Multiplication of literal and live variable" -: compileBlock [Var IntType "x"] [(Var IntType "x", R12), (Var IntType "y", R13)] 0 [DeclareAndAssignStmt (Var IntType "y") (MultiplyExpr (IntAtom 4) (VarAtom (Var IntType "x")))] --> ([MOV L (Immediate 4) R13, IMUL L R13 R12 R14, MOV L R14 R13], 0)
+            , "(8) While loop with literal condition and empty body" -: 
                 let 
                     -- while (1) {}
                     expr = AtomExpr (IntAtom 1)
@@ -122,7 +79,7 @@ compileBlockTests = TestGroup
                           ]
                         , 2 ) -- Block consumed 0 labels, so it returns i+2
 
-            , "While loop with live variable condition and assignment body" -: 
+            , "(9) While loop with live variable condition and assignment body" -: 
                 let 
                     -- while (x) { int y = 2; }
                     vX = Var IntType "x"
@@ -144,5 +101,8 @@ compileBlockTests = TestGroup
                           , Label 5
                           ]
                         , 6 )
-        ]
-    )
+            , "(10) Single ExprStmt with AssignExpr (x = 5;)" -: compileBlock [Var IntType "x"] [(Var IntType "x", R12)] 0 [ExprStmt (AssignExpr (Var IntType "x") (AtomExpr (IntAtom 5)))] --> ([MOV L (Immediate 5) R13, MOV L R13 R12], 0)
+            , "(11) Assigning one variable to another (x = y;)" -: compileBlock [Var IntType "x", Var IntType "y"] [(Var IntType "x", R12), (Var IntType "y", R13)] 0 [ExprStmt (AssignExpr (Var IntType "x") (AtomExpr (VarAtom (Var IntType "y"))))] --> ([MOV L R13 R12], 0)
+            , "(12) Chained assignments (x = y = 5;)" -: compileBlock [Var IntType "x", Var IntType "y"] [(Var IntType "x", R12), (Var IntType "y", R13)] 0 [ExprStmt (AssignExpr (Var IntType "x") (AssignExpr (Var IntType "y") (AtomExpr (IntAtom 5))))] --> ([MOV L (Immediate 5) R14, MOV L R14 R13, MOV L R13 R12], 0)
+            , "(13) Assignment with arithmetic expression (x = y + 3;)" -: compileBlock [Var IntType "x", Var IntType "y"] [(Var IntType "x", R12), (Var IntType "y", R13)] 0 [ExprStmt (AssignExpr (Var IntType "x") (AddExpr (VarAtom (Var IntType "y")) (IntAtom 3)))] --> ([MOV L (Immediate 3) R14, ADD L R13 R14 R15, MOV L R15 R12], 0)        ]
+    ) 

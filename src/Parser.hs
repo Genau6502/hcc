@@ -125,9 +125,14 @@ parseStmt :: Context -> Parser (Stmt, Context)
 parseStmt ctx toks = parseWhileLoop <|> parseLineStmt
     where
         parseLineStmt :: Either Error ((Stmt, Context), [Token])
-        parseLineStmt = do  (stmtctx, toks') <- parseDeclareAndAssignStmt <|> parseReturnStmt
+        parseLineStmt = do  (stmtctx, toks') <- parseDeclareAndAssignStmt <|> parseReturnStmt <|> parseExprStmt
                             (toks'') <- consumeTok SemiColonTok toks'
                             return (stmtctx, toks'')
+
+        parseExprStmt :: Either Error ((Stmt, Context), [Token])
+        parseExprStmt = do
+            (expr, toks') <- parseExpr ctx toks
+            return ((ExprStmt expr, ctx), toks')
 
         parseDeclareAndAssignStmt :: Either Error ((Stmt, Context), [Token])
         parseDeclareAndAssignStmt = do
@@ -152,7 +157,7 @@ parseStmt ctx toks = parseWhileLoop <|> parseLineStmt
             return ((ReturnStmt expr, ctx), toks'')
 
 parseExpr :: Context -> Parser Expr
-parseExpr ctx toks = parseMinusExpr ctx toks <|> parseAddExpr ctx toks <|> parseSubtractExpr ctx toks <|> parseMultiplyExpr ctx toks <|> ((\(a, toks') -> (AtomExpr a, toks')) <$> (parseAtom ctx toks))
+parseExpr ctx toks = parseMinusExpr ctx toks <|> parseAddExpr ctx toks <|> parseSubtractExpr ctx toks <|> parseMultiplyExpr ctx toks <|> parseAssignExpr ctx toks <|> ((\(a, toks') -> (AtomExpr a, toks')) <$> (parseAtom ctx toks))
 
 parseBinOp :: Context -> Token -> (Atom -> Atom -> Expr) -> Parser Expr
 parseBinOp ctx t e toks = do
@@ -175,6 +180,15 @@ parseSubtractExpr ctx = parseBinOp ctx MinusTok SubtractExpr
 
 parseMultiplyExpr :: Context -> Parser Expr
 parseMultiplyExpr ctx = parseBinOp ctx AsteriskTok MultiplyExpr 
+
+parseAssignExpr :: Context -> Parser Expr
+parseAssignExpr ctx (NatTok x : EqualsTok : toks) = case varInScope ctx x of
+    (Just v) -> do
+        (e, toks') <- parseExpr ctx toks
+        return (AssignExpr v e, toks')
+    Nothing -> Left $ UnexpectedToken x
+parseAssignExpr _ _ = Left $ Unexpected
+
 
 parseAtom :: Context -> Parser Atom
 parseAtom ctx toks = parseVarAtom ctx toks <|> parseParenAtom ctx toks <|> parseIntAtom toks <|> parseCharAtom toks
