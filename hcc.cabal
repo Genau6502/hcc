@@ -28,6 +28,6 @@ test-suite hcc-test
     import:           shared
     type:             exitcode-stdio-1.0
     main-is:          Main.hs
-    other-modules:    TestSuite TestTypes TokeniserTest ParserTest RegisterTest TypeCheckTest CompileTest
+    other-modules:    TestSuite TestTypes TokeniserTest ParserTest TypeCheckTest CompileTest
     hs-source-dirs:   test
     build-depends:    hcc

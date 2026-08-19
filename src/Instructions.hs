@@ -2,16 +2,6 @@ module Instructions where
 
 import Types
 
-data Size = L
-    deriving Eq
-
-instance Show Size where
-    show L = "l"
-
-sizeOf :: Type -> Size
-sizeOf IntType = L
-
-
 data Instruction = Label Int
     | ADD Size Location Location Location
     | SUB Size Location Location Location

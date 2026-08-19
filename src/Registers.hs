@@ -1,55 +1,59 @@
-module Registers(allocateRegistersForBlock, allocateDummyVar, locationOf, LiveVariables, clearDeadVars) where
+module Registers(allocateDummyVar, locationOf, LiveVariables, clearDeadVars, freeDeadVars, emptyRA, processStmt) where
 
-import Data.Maybe
 import Types
 
 registers :: [Location]
-registers = [R12, R13, R14, R15, R10, R11]
+-- This is in the order we want them to be used. Prioritise callee saved registers.
+-- We do not include RSP as we never want to overwrite the stack pointer
+registers = [R12, R13, R14, R15, RBX, RBP, R10, R11, RDI, RSI, RDX, RCX, R8, R9]
+
+emptyRA :: RegisterAllocation
+emptyRA = RegisterAllocation registers 0 []
 
 type LiveVariables = [Var]
 
-{-
-    Registers are allocated as follows
-    For each block, we hand the existing register allocation to this function.
-    We then add 
+freeDeadVar :: Var -> RegisterAllocation -> RegisterAllocation
+freeDeadVar v ra = case lookup v (allocations ra) of
+        (Just loc) ->
+            let ra' = ra { allocations = filter ((/=v).fst) (allocations ra) } in
+            case loc of
+                Stack _ -> ra'
+                Immediate _ -> ra'
+                r -> ra' { freeregs = r:freeregs ra' }
+        Nothing -> ra
 
-
-    PROCESS A BLOCK AS FOLLOWS
-    - Take the preceeding live variables and register allocation.
-    - Compute the register allocations for the block providing the existing register allocation
-
-    The effect is that register allocations are scoped to the block they are actually in.
--}
-
---todo make this more sensible - use internal state to tell when variables go in and out of scope
-allocateRegistersForBlock :: LiveVariables -> RegisterAllocation -> [Stmt] -> RegisterAllocation
-allocateRegistersForBlock outerLvs = allocateRegisters' outerLvs
-    where
-        allocateRegisters' :: LiveVariables -> RegisterAllocation -> [Stmt] -> RegisterAllocation
-        allocateRegisters' lvs ra [] = ra
-        allocateRegisters' lvs ra (s:stmts)
-            = let
-                (lvs', ra') = processStmt s lvs ra
-                lvs'' = clearDeadVars stmts outerLvs lvs'
-                in allocateRegisters' lvs'' ra' stmts
 
 processStmt :: Stmt -> LiveVariables -> RegisterAllocation -> (LiveVariables, RegisterAllocation)
-processStmt (DeclareAndAssignStmt v _) lvs ra = (v:lvs, ((v, allocateRegister lvs ra):ra))
-processStmt (ExprStmt (AssignExpr v e)) lvs ra = (lvs, ra)-- (v:lvs, ((v, allocateRegister lvs ra):ra))
+processStmt (DeclareAndAssignStmt (Var t n) _) lvs ra = let
+    (loc, ra') = allocateLocation t ra
+    in (Var t n:lvs, ra' { allocations = (Var t n, loc):allocations ra})
+processStmt (ExprStmt (AssignExpr _ _)) lvs ra = (lvs, ra)
 processStmt _ lvs ra = (lvs, ra)
 
 -- Pre: variable is live
 locationOf :: Var -> RegisterAllocation -> Location
-locationOf ra v = let (Just x) = lookup ra v in x
+locationOf v ra = lookupUnsafe v (allocations ra)
 
-allocateRegister :: LiveVariables -> RegisterAllocation -> Location
-allocateRegister lvs ra = selectLocation registers
+allocateLocation :: Type -> RegisterAllocation -> (Location, RegisterAllocation)
+--todo: consider that we can't have all mem arithmetic instructions-}
+allocateLocation t ra = case freeregs ra of
+    (r:rs) -> (r, ra { freeregs = rs })
+    [] -> let
+        sizeOnStack = sizeToBytes (sizeOf t)
+        currentOffset = stackOffset ra
+        in (Stack currentOffset, ra { stackOffset = currentOffset + sizeOnStack})
+
+
+
+{- selectLocation registers
     where
         currentLocations :: [Location]
         currentLocations = map (\v -> lookupUnsafe v ra) lvs
+
         selectLocation :: [Location] -> Location
         selectLocation (l:ls) = if (any (==l) currentLocations) then selectLocation ls else l
-
+        selectLocation [] = undefined 
+-}
 lookupUnsafe :: Eq a => a -> [(a, b)] -> b
 lookupUnsafe x ((y, z):xs)
     | x == y = z
@@ -58,14 +62,18 @@ lookupUnsafe x ((y, z):xs)
 clearDeadVars :: [Stmt] -> LiveVariables -> LiveVariables -> LiveVariables
 clearDeadVars stmts outerLvs = filter (\v -> isVariableLive stmts v || elem v outerLvs)
 
+freeDeadVars :: RegisterAllocation -> [Var] -> RegisterAllocation
+freeDeadVars = foldr freeDeadVar
+
 isVariableLive :: [Stmt] -> Var -> Bool
-isVariableLive _ (DummyVar _) = False
+isVariableLive _ (DummyVar _ _) = False
 isVariableLive stmts v = any stmtContainsVar stmts
     where
         stmtContainsVar :: Stmt -> Bool
         stmtContainsVar (DeclareAndAssignStmt _ e) = exprContainsVar e
         stmtContainsVar (ReturnStmt e) = exprContainsVar e
         stmtContainsVar (ExprStmt e) = exprContainsVar e
+        stmtContainsVar (WhileStmt e b) = any stmtContainsVar b || exprContainsVar e
 
         exprContainsVar :: Expr -> Bool
         exprContainsVar (AddExpr a1 a2) = atomContainsVar a1 || atomContainsVar a2
@@ -84,11 +92,12 @@ A dummy variable is one which is used for the compilation of a single statement,
 
 TODO: do this properly
 -}
-allocateDummyVar :: LiveVariables -> RegisterAllocation -> (Location, RegisterAllocation, LiveVariables)
-allocateDummyVar lvs ra = let
-                            v = DummyVar (length lvs)
-                            loc = allocateRegister lvs ra
-                            in (allocateRegister lvs ra, (v, loc):ra, v:lvs)
+allocateDummyVar :: Type -> LiveVariables -> RegisterAllocation -> (Location, RegisterAllocation, LiveVariables)
+allocateDummyVar t lvs ra = let
+    size = sizeOf t
+    v = DummyVar size (length lvs)
+    (loc, ra') = allocateLocation t ra
+    in (loc, ra', v:lvs)
 
 {-
 

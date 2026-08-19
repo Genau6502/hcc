@@ -1,7 +1,19 @@
 module Types where
 
-data Var = Var Type String | DummyVar Int
+data Var = Var Type String | DummyVar Size Int
     deriving (Eq, Show)
+
+data Size = L
+    deriving Eq
+
+instance Show Size where
+    show L = "l"
+
+sizeOf :: Type -> Size
+sizeOf IntType = L
+
+sizeToBytes :: Size -> Int
+sizeToBytes L = 4
 
 data Type = PointerType Type | StructType String | FunctionType [Type] Type | ArrayType Type Expr | IntType | CharType
     deriving (Eq, Show)
@@ -54,6 +66,10 @@ instance Show Location where
     show RBX = "%rbx"
     show RBP = "%rbx"
     show (Immediate i) = '$':show i
-    show (Stack n) = show n
+    show (Stack n) = show n ++ "(%rsp)"
 
-type RegisterAllocation = [(Var, Location)]
+data RegisterAllocation = RegisterAllocation {
+    freeregs :: [Location],
+    stackOffset :: Int,
+    allocations :: [(Var, Location)]
+}
