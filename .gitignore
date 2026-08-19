@@ -32,3 +32,6 @@ cabal.project.local~
 # C source files
 *.c
 *.h
+
+# Binaries
+hcc
