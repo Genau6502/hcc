@@ -5,7 +5,7 @@ import Types
 registers :: [Location]
 -- This is in the order we want them to be used. Prioritise callee saved registers.
 -- We do not include RSP as we never want to overwrite the stack pointer
-registers = [R12, R13, R14, R15, RBX, RBP, R10, R11, RDI, RSI, RDX, RCX]
+registers = [R12, R13, R14, R15, RBX, RBP, R10, R11, RDI, RSI, RDX, RCX, R8, R9]
 
 emptyRA :: RegisterAllocation
 emptyRA = RegisterAllocation registers 0 []
@@ -92,6 +92,7 @@ isVariableLive stmts v = any stmtContainsVar stmts
 
         atomContainsVar :: Atom -> Bool
         atomContainsVar (VarAtom v') = v==v'
+        atomContainsVar (ParenAtom e) = exprContainsVar e
         atomContainsVar _ = False
 
 {-
@@ -104,7 +105,7 @@ allocateDummyVar t lvs ra = let
     size = sizeOf t
     v = DummyVar size (length lvs)
     (loc, ra') = allocateLocation t ra
-    in (loc, ra', v:lvs)
+    in (loc, ra' { allocations = (v, loc) : allocations ra' }, v:lvs)
 
 {-
 

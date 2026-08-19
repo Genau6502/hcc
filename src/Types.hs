@@ -68,7 +68,7 @@ instance Show Location where
     show RSP = "%rsp"
     show RAX = "%rax"
     show RBX = "%rbx"
-    show RBP = "%rbx"
+    show RBP = "%rbp"
     show (Immediate i) = '$':show i
     show (Stack n) = show n ++ "(%rsp)"
 
