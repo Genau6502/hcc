@@ -3,6 +3,7 @@ module Parser(parseAtom, parseExpr, parseStmt, parseBlock, parseDeclarator, pars
 import Types
 import ParseContext
 import TypeCheck
+import Control.Monad(unless)
 
 type Parser a = [Token] -> Either Error (a, [Token])
 
@@ -12,11 +13,13 @@ Left _ <|> Right y = Right y
 Left x <|> _ = Left x
 
 parseFunctions :: Parser [Function]
-parseFunctions [] = pure ([], [])
-parseFunctions toks = do
-    (f, toks') <- parseFunction toks
-    (fs, toks'') <- parseFunctions toks'
-    return (f:fs, toks'')
+parseFunctions = parseFunctions' []
+    where
+        parseFunctions' :: [Function] -> Parser [Function]
+        parseFunctions' fs [] = pure (fs, [])
+        parseFunctions' fs toks = do
+            (f, toks') <- parseFunction fs toks
+            parseFunctions' (f:fs) toks'
 
 parseBaseType :: String -> Either Error Type
 parseBaseType "int" = pure IntType
@@ -134,11 +137,11 @@ parseNextArgs (CommaTok:toks) = do
     return (Var t name:vs, toks')
 parseNextArgs toks = Left $ UnexpectedToken (show toks)
 
-parseFunction :: Parser Function
-parseFunction [] = Left NoMoreTokens
-parseFunction toks = do
+parseFunction :: [Function] -> Parser Function
+parseFunction fs [] = Left NoMoreTokens
+parseFunction fs toks = do
     ((name, args, returntype), toks') <- parseFunctionDeclarator emptyContext toks
-    ((body, _), toks'') <- parseBlock (putVarsInScope emptyContext args) toks'
+    ((body, _), toks'') <- parseBlock (funcContext returntype fs args) toks'
     return (Function name args returntype body, toks'')
 
 parseFunctionDeclarator :: Context -> Parser (String, [Var], Type)
@@ -258,7 +261,7 @@ parseAssignExpr _ _ = Left $ Unexpected
 
 
 parseAtom :: Context -> Parser Atom
-parseAtom ctx toks = parseVarAtom ctx toks <|> parseParenAtom ctx toks <|> parseIntAtom toks <|> parseCharAtom toks
+parseAtom ctx toks = parseVarAtom ctx toks <|> parseParenAtom ctx toks <|> parseIntAtom toks <|> parseCharAtom toks <|> parseFunctionCallAtom ctx toks
 
 parseVarAtom :: Context -> Parser Atom
 parseVarAtom ctx (NatTok name : toks) = case (varInScope ctx name) of 
@@ -275,6 +278,30 @@ parseParenAtom ctx toks = parseCastAtom <|> parseSubExpr
 
         parseSubExpr :: Either Error (Atom, [Token])
         parseSubExpr = ((consumeTok LParenTok toks) >>= parseExpr ctx >>= (\(e, toks') -> (,) (ParenAtom e) <$> consumeTok RParenTok toks'))
+
+parseFunctionCallAtom :: Context -> Parser Atom
+parseFunctionCallAtom ctx toks = do
+    (f, toks1) <- parseFunctionCall toks
+    toks2 <- consumeTok LParenTok toks1
+    (args, toks3) <- parseArgNames toks2
+    toks4 <- consumeTok RParenTok toks3
+    return (FunctionCallAtom f args, toks4)
+    where
+        parseFunctionCall :: Parser Function
+        parseFunctionCall (NatTok x:toks') = case funcInScope ctx x of
+            Just f -> pure (f, toks')
+            Nothing -> Left $ Unexpected
+        parseFunctionCall _ = Left $ Unexpected
+        
+        parseArgNames :: [Token] -> Either Error ([Expr], [Token])
+        parseArgNames (RParenTok:ts) = pure ([], RParenTok:ts) 
+        parseArgNames ts = do
+            (arg, ts') <- parseExpr ctx ts 
+            case ts' of
+                (CommaTok : ts'') -> do
+                    (restArgs, ts''') <- parseArgNames ts''
+                    pure (arg : restArgs, ts''')
+                _ -> pure ([arg], ts')
 
 parseIntAtom :: Parser Atom
 parseIntAtom (PrimIntTok x : toks) = Right $ (IntAtom x, toks)

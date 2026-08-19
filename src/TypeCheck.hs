@@ -41,4 +41,15 @@ parseTypeOfAtom _ (VarAtom (Var t _)) = pure t
 parseTypeOfAtom _ (CharAtom _) = pure CharType
 parseTypeOfAtom ctx (ParenAtom e) = parseTypeOfExpr ctx e
 parseTypeOfAtom _ (CastAtom t e) = pure t
+parseTypeOfAtom ctx (FunctionCallAtom (Function _ params t _) args) = do
+    unless ((length params) == (length args)) $ Left $ ParamNumber (length params) (length args)
+    paramTs <- mapM (parseTypeOfVar ctx) params
+    argTs <- mapM (parseTypeOfExpr ctx) args
+    if argTs == paramTs
+        then pure t
+        else Left Unexpected
 parseTypeOfAtom _ _ = Left $ Unexpected
+
+parseTypeOfVar :: Context -> Var -> Either Error Type
+parseTypeOfVar _ (Var t _) = pure t
+parseTypeOfVar _ _ = Left Unexpected

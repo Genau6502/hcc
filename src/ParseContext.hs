@@ -1,43 +1,49 @@
-module ParseContext(emptyContext, putVarInScope, removeVarFromScope, varInScope, putVarsInScope, Context, checkFunctionReturnType, varContext, funcContext) where
+module ParseContext(emptyContext, putVarInScope, removeVarFromScope, varInScope, putVarsInScope, Context, checkFunctionReturnType, varContext, funcContext, funcInScope) where
 
 import Types
 
 -- Represents: return type, variables in scope
-data Context = ParseContext Type [Var]
+data Context = ParseContext Type [Function] [Var]
     deriving (Eq, Show)
 
 -- For use in testing
 varContext :: [Var] -> Context
-varContext = ParseContext VoidType
+varContext = ParseContext VoidType []
 
-funcContext :: Type -> [Var] -> Context
-funcContext = ParseContext
+funcContext :: Type -> [Function] -> [Var] -> Context
+funcContext t = ParseContext t
 
 emptyContext :: Context
-emptyContext = ParseContext VoidType []
+emptyContext = ParseContext VoidType [] []
 
 checkFunctionReturnType :: Context -> Type -> Either Error Type
-checkFunctionReturnType (ParseContext t _) t'
+checkFunctionReturnType (ParseContext t fs _) t'
     | t == t' = Right t
     | otherwise = Left $ ReturnTypeMismatch t t'
 
 putVarsInScope :: Context -> [Var] -> Context
-putVarsInScope (ParseContext t vs) vars = ParseContext t (vs ++ vars)
+putVarsInScope (ParseContext t fs vs) vars = ParseContext t fs (vs ++ vars)
 
 putVarInScope :: Context -> Var -> Context
-putVarInScope (ParseContext t vs) v = ParseContext t (v:vs)
+putVarInScope (ParseContext t fs vs) v = ParseContext t fs (v:vs)
 
 --todo: consider if we need to handle errors in this
 removeVarFromScope :: Context -> Var -> Context
-removeVarFromScope (ParseContext t vs) var = ParseContext t (filter (/=var) vs)
+removeVarFromScope (ParseContext t fs vs) var = ParseContext t fs (filter (/=var) vs)
 
 varInScope :: Context -> String -> Maybe Var
-varInScope (ParseContext t ((Var t' n):cs)) name
+varInScope (ParseContext t fs ((Var t' n):cs)) name
     | n == name = Just (Var t' n)
-    | otherwise = varInScope (ParseContext t cs) name
+    | otherwise = varInScope (ParseContext t fs cs) name
 varInScope _ _ = Nothing
 
+funcInScope :: Context -> String -> Maybe Function
+funcInScope (ParseContext t (f@(Function n _ _ _):fs) cs) name
+    | n == name = Just f
+    | otherwise = funcInScope (ParseContext t fs cs) name
+funcInScope _ _ = Nothing
+
 errorIfAlreadyContainsVarName :: Context -> String -> Either Error Context
-errorIfAlreadyContainsVarName (ParseContext t vars) name
+errorIfAlreadyContainsVarName (ParseContext t fs vars) name
     | any (\(Var _ n) -> n == name) vars = Left $ VariableAlreadyDeclared name
-    | otherwise = pure (ParseContext t vars)
+    | otherwise = pure (ParseContext t fs vars)

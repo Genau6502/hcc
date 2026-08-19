@@ -1,11 +1,18 @@
-module Registers(allocateDummyVar, locationOf, LiveVariables, clearDeadVars, freeDeadVars, emptyRA, processStmt, functionRA) where
+module Registers(allocateDummyVar, locationOf, LiveVariables, clearDeadVars, freeDeadVars, emptyRA, processStmt, functionRA, saveCallerSaved, restoreCallerSaved, saveCalleeSaved, restoreCalleeSaved, argRegisters) where
 
 import Types
+import Instructions
 
 registers :: [Location]
 -- This is in the order we want them to be used. Prioritise callee saved registers.
 -- We do not include RSP as we never want to overwrite the stack pointer
 registers = [R12, R13, R14, R15, RBX, RBP, R10, R11, RDI, RSI, RDX, RCX, R8, R9]
+
+calleeSavedRegisters :: [Location]
+calleeSavedRegisters = [R12, R13, R14, R15, RBP, RBX]
+
+argRegisters :: [Location]
+argRegisters = [RDI, RSI, RDX, RCX, R8, R9]
 
 emptyRA :: RegisterAllocation
 emptyRA = RegisterAllocation registers 0 []
@@ -50,17 +57,28 @@ allocateLocation t ra = case freeregs ra of
         currentOffset = stackOffset ra
         in (Stack currentOffset, ra { stackOffset = currentOffset + sizeOnStack})
 
-
-
-{- selectLocation registers
+-- n is the number of args in the function
+saveCallerSaved :: RegisterAllocation -> Int -> [(Instruction, Location)]
+saveCallerSaved ra n = concatMap saveRegister (R10:R11:(take n argRegisters))
     where
-        currentLocations :: [Location]
-        currentLocations = map (\v -> lookupUnsafe v ra) lvs
+        saveRegister :: Location -> [(Instruction, Location)]
+        saveRegister r
+            | elem r (map snd (allocations ra)) = [(PUSH Q r, r)]
+            | otherwise = []
 
-        selectLocation :: [Location] -> Location
-        selectLocation (l:ls) = if (any (==l) currentLocations) then selectLocation ls else l
-        selectLocation [] = undefined 
--}
+restoreCallerSaved :: RegisterAllocation -> Int -> [Instruction]
+restoreCallerSaved ra n = concatMap saveRegister (R10:R11:(take n argRegisters))
+    where
+        saveRegister :: Location -> [Instruction]
+        saveRegister r
+            | elem r (map snd (allocations ra)) = [POP Q r]
+            | otherwise = []
+
+saveCalleeSaved :: [Instruction]
+saveCalleeSaved = map (PUSH Q) calleeSavedRegisters
+restoreCalleeSaved :: [Instruction]
+restoreCalleeSaved = map (POP Q) calleeSavedRegisters
+
 lookupUnsafe :: Eq a => a -> [(a, b)] -> b
 lookupUnsafe x ((y, z):xs)
     | x == y = z
@@ -92,6 +110,7 @@ isVariableLive stmts v = any stmtContainsVar stmts
 
         atomContainsVar :: Atom -> Bool
         atomContainsVar (VarAtom v') = v==v'
+        atomContainsVar (FunctionCallAtom _ es) = any exprContainsVar es
         atomContainsVar (ParenAtom e) = exprContainsVar e
         atomContainsVar _ = False
 

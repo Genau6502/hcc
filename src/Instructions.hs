@@ -12,6 +12,8 @@ data Instruction = Label Int | FuncLabel String
     | JE Instruction
     | JMP Instruction
     | RET | RET_PLA
+    | PUSH Size Location | POP Size Location
+    | CALL Instruction
     deriving Eq
 
 instance Show Instruction where
@@ -28,6 +30,9 @@ instance Show Instruction where
     show (JMP (Label i)) = "    jmp L" ++ show i
     show RET = "    ret"
     show RET_PLA = "    RET placeholder"
+    show (PUSH s l) = "    push" ++ show s ++ " " ++ show l
+    show (POP s l) = "    pop" ++ show s ++ " " ++ show l
+    show (CALL (FuncLabel name)) = "    call " ++ name
     show _ = "Error: illegal instruction"
 
 showInstructions :: [Instruction] -> String
