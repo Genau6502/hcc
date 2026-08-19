@@ -1,4 +1,4 @@
-module Parser(parseAtom, parseExpr, parseStmt, parseBlock, parseDeclarator, parseAbstractDeclarator, parseFunction) where
+module Parser(parseAtom, parseExpr, parseStmt, parseBlock, parseDeclarator, parseAbstractDeclarator, parseFunction, parseFunctions) where
 
 import Types
 import ParseContext
@@ -10,6 +10,13 @@ type Parser a = [Token] -> Either Error (a, [Token])
 Right x <|> _ = Right x
 Left _ <|> Right y = Right y
 Left x <|> _ = Left x
+
+parseFunctions :: Parser [Function]
+parseFunctions [] = pure ([], [])
+parseFunctions toks = do
+    (f, toks') <- parseFunction toks
+    (fs, toks'') <- parseFunctions toks'
+    return (f:fs, toks'')
 
 parseBaseType :: String -> Either Error Type
 parseBaseType "int" = pure IntType

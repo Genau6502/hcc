@@ -5,6 +5,16 @@ import Instructions
 import Registers
 import Data.List((\\))
 
+compileFunctions :: [Function] -> [Instruction]
+compileFunctions fs = compileFunctions' fs 0
+    where
+        compileFunctions' :: [Function] -> Int -> [Instruction]
+        compileFunctions' [] _ = []
+        compileFunctions' (f:fs) l = let
+            (i, l') = compileFunction f l
+            is = compileFunctions' fs l'
+            in (i ++ is)
+
 compileFunction :: Function -> Int -> ([Instruction], Int)
 compileFunction f@(Function name args _ b) label = let
     (bodyIs, maxStackSize, label') = compileBlock args (functionRA f) label b
