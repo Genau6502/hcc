@@ -1,14 +1,21 @@
-module Registers(allocateDummyVar, locationOf, LiveVariables, clearDeadVars, freeDeadVars, emptyRA, processStmt) where
+module Registers(allocateDummyVar, locationOf, LiveVariables, clearDeadVars, freeDeadVars, emptyRA, processStmt, functionRA) where
 
 import Types
 
 registers :: [Location]
 -- This is in the order we want them to be used. Prioritise callee saved registers.
 -- We do not include RSP as we never want to overwrite the stack pointer
-registers = [R12, R13, R14, R15, RBX, RBP, R10, R11, RDI, RSI, RDX, RCX, R8, R9]
+registers = [R12, R13, R14, R15, RBX, RBP, R10, R11, RDI, RSI, RDX, RCX]
 
 emptyRA :: RegisterAllocation
 emptyRA = RegisterAllocation registers 0 []
+
+functionRegisters :: [Location]
+functionRegisters = [RDI, RSI, RDX, RCX, R8, R9]
+
+--todo consider more than 6 args
+functionRA :: Function -> RegisterAllocation
+functionRA (Function name args t _) = RegisterAllocation registers 0 (zip args functionRegisters)
 
 type LiveVariables = [Var]
 

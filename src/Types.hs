@@ -3,11 +3,12 @@ module Types where
 data Var = Var Type String | DummyVar Size Int
     deriving (Eq, Show)
 
-data Size = L
+data Size = L | Q
     deriving Eq
 
 instance Show Size where
     show L = "l"
+    show Q = "q"
 
 sizeOf :: Type -> Size
 sizeOf IntType = L
@@ -75,4 +76,4 @@ data RegisterAllocation = RegisterAllocation {
     freeregs :: [Location],
     stackOffset :: Int,
     allocations :: [(Var, Location)]
-}
+} deriving Show
