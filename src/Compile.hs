@@ -3,7 +3,6 @@ module Compile where
 import Types
 import Instructions
 import Registers
-import TypeCheck
 import Data.List((\\))
 
 {-
@@ -39,6 +38,9 @@ compileStmt lvs ra i (WhileStmt expr block) = let
             -- At the end of the block, we jump back to condition evaluation
             in ((condLabel : cond <++> (TEST condSize res res) <++> (JE endLabel) ++ body <++> (JMP condLabel) <++> endLabel), i')
 compileStmt lvs ra i (ExprStmt e) = const i <$> compileExpr lvs ra e
+compileStmt lvs ra i (ReturnStmt e) = let
+    (is, loc) = compileExpr lvs ra e
+    in (is <++> MOV (sizeOf (typeOfExpr lvs e)) loc RAX <++> RET, i)
 compileStmt _ _ _ _ = undefined
 
 compileAtom :: LiveVariables -> RegisterAllocation -> Atom -> ([Instruction], Location, LiveVariables, RegisterAllocation)

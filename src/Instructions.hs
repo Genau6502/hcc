@@ -11,6 +11,7 @@ data Instruction = Label Int
     | TEST Size Location Location
     | JE Instruction
     | JMP Instruction
+    | RET
     deriving Eq
 
 instance Show Instruction where
@@ -26,4 +27,5 @@ show' (CMP s l1 l2) = "cmp" ++ show s ++ " " ++ show l1 ++ ", " ++ show l2
 show' (TEST s l1 l2) = "test" ++ show s ++ " " ++ show l1 ++ ", " ++ show l2
 show' (JE (Label i)) = "je L" ++ show i
 show' (JMP (Label i)) = "jmp L" ++ show i
+show' RET = "ret"
 show' _ = "Error: illegal instruction"

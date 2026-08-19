@@ -14,13 +14,13 @@ typeCheckStmt :: Context -> Stmt -> Either Error ()
 typeCheckStmt ctx (DeclareAndAssignStmt (Var t _) e) = do
     exprT <- parseTypeOfExpr ctx e
     unless (exprT == t) $ Left (MismatchType t exprT)
-typeCheckStmt ctx (AssignStmt (Var t _) e) = do
-    exprT <- parseTypeOfExpr ctx e
-    unless (exprT == t) $ Left (MismatchType t exprT)
 typeCheckStmt ctx (WhileStmt e block) = do
     exprT <- parseTypeOfExpr ctx e
     unless (exprT == IntType) $ Left (MismatchType IntType exprT)
 typeCheckStmt ctx (ExprStmt e) = (const ()) <$> parseTypeOfExpr ctx e
+typeCheckStmt ctx (ReturnStmt e) = do
+    exprT <- parseTypeOfExpr ctx e
+    (const ()) <$> checkFunctionReturnType ctx exprT
 
 parseTypeOfExpr :: Context -> Expr -> Either Error Type
 parseTypeOfExpr ctx (AddExpr x y) = atomSameType ctx x y

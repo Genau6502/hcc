@@ -38,12 +38,12 @@ parseStmtTests = TestGroup
     (
         "Parse Stmt Tests"
         , [ 
-            "int x = 2 + 2;" -: parseStmt emptyContext [ NatTok "int", NatTok "x", EqualsTok, PrimIntTok 2, PlusTok, PrimIntTok 2, SemiColonTok ] --> Right ((DeclareAndAssignStmt (Var IntType "x") (AddExpr (IntAtom 2) (IntAtom 2)), [Var IntType "x"]), [])
-        ,   "int **x = 0;" -: parseStmt emptyContext [NatTok "int",AsteriskTok,AsteriskTok,NatTok "x",EqualsTok,PrimIntTok 0,SemiColonTok] --> Right ((DeclareAndAssignStmt (Var (PointerType (PointerType IntType)) "x") (AtomExpr (IntAtom 0)), [Var (PointerType (PointerType IntType)) "x"]), [])
-        ,   "return 0;" -: parseStmt emptyContext [ReturnTok,PrimIntTok 0,SemiColonTok] --> Right ((ReturnStmt (AtomExpr (IntAtom 0)), []), [])
-        ,   "while (1) { return 0; }" -: parseStmt emptyContext [WhileTok,LParenTok,PrimIntTok 1,RParenTok,LBraceTok,ReturnTok,PrimIntTok 0,SemiColonTok,RBraceTok] --> Right ((WhileStmt (AtomExpr (IntAtom 1)) [ReturnStmt (AtomExpr (IntAtom 0))], []), [])
-        , "Parse ExprStmt AssignExpr" -: parseStmt [Var IntType "x"] [NatTok "x", EqualsTok, PrimIntTok 5, SemiColonTok] --> Right ((ExprStmt (AssignExpr (Var IntType "x") (AtomExpr (IntAtom 5))), [Var IntType "x"]), [])
-        , "Parse ExprStmt Addition" -: parseStmt [] [PrimIntTok 1, PlusTok, PrimIntTok 2, SemiColonTok] --> Right ((ExprStmt (AddExpr (IntAtom 1) (IntAtom 2)), []), [])
+            "int x = 2 + 2;" -: parseStmt emptyContext [ NatTok "int", NatTok "x", EqualsTok, PrimIntTok 2, PlusTok, PrimIntTok 2, SemiColonTok ] --> Right ((DeclareAndAssignStmt (Var IntType "x") (AddExpr (IntAtom 2) (IntAtom 2)), varContext [Var IntType "x"]), [])
+        ,   "int **x = 0;" -: parseStmt emptyContext [NatTok "int",AsteriskTok,AsteriskTok,NatTok "x",EqualsTok,PrimIntTok 0,SemiColonTok] --> Right ((DeclareAndAssignStmt (Var (PointerType (PointerType IntType)) "x") (AtomExpr (IntAtom 0)), varContext [Var (PointerType (PointerType IntType)) "x"]), [])
+        ,   "return 0;" -: parseStmt emptyContext [ReturnTok,PrimIntTok 0,SemiColonTok] --> Right ((ReturnStmt (AtomExpr (IntAtom 0)), emptyContext), [])
+        ,   "while (1) { return 0; }" -: parseStmt emptyContext [WhileTok,LParenTok,PrimIntTok 1,RParenTok,LBraceTok,ReturnTok,PrimIntTok 0,SemiColonTok,RBraceTok] --> Right ((WhileStmt (AtomExpr (IntAtom 1)) [ReturnStmt (AtomExpr (IntAtom 0))], emptyContext), [])
+        , "Parse ExprStmt AssignExpr" -: parseStmt (varContext [Var IntType "x"]) [NatTok "x", EqualsTok, PrimIntTok 5, SemiColonTok] --> Right ((ExprStmt (AssignExpr (Var IntType "x") (AtomExpr (IntAtom 5))), varContext [Var IntType "x"]), [])
+        , "Parse ExprStmt Addition" -: parseStmt emptyContext [PrimIntTok 1, PlusTok, PrimIntTok 2, SemiColonTok] --> Right ((ExprStmt (AddExpr (IntAtom 1) (IntAtom 2)), emptyContext), [])
         ]
     )
 
@@ -53,7 +53,7 @@ parseBlockTests = TestGroup
     (
         "Parse block tests",
         [
-            "{int x = 1; int y = 2; int z = x + y;}" -: parseBlock emptyContext [LBraceTok,NatTok "int",NatTok "x",EqualsTok,PrimIntTok 1,SemiColonTok,NatTok "int",NatTok "y",EqualsTok,PrimIntTok 2,SemiColonTok,NatTok "int",NatTok "z",EqualsTok,NatTok "x",PlusTok,NatTok "y",SemiColonTok,RBraceTok] --> Right (([DeclareAndAssignStmt (Var IntType "x") (AtomExpr (IntAtom 1)),DeclareAndAssignStmt (Var IntType "y") (AtomExpr (IntAtom 2)),DeclareAndAssignStmt (Var IntType "z") (AddExpr (VarAtom (Var IntType "x")) (VarAtom (Var IntType "y")))],[Var IntType "z",Var IntType "y",Var IntType "x"]),[])
+            "{int x = 1; int y = 2; int z = x + y;}" -: parseBlock emptyContext [LBraceTok,NatTok "int",NatTok "x",EqualsTok,PrimIntTok 1,SemiColonTok,NatTok "int",NatTok "y",EqualsTok,PrimIntTok 2,SemiColonTok,NatTok "int",NatTok "z",EqualsTok,NatTok "x",PlusTok,NatTok "y",SemiColonTok,RBraceTok] --> Right (([DeclareAndAssignStmt (Var IntType "x") (AtomExpr (IntAtom 1)),DeclareAndAssignStmt (Var IntType "y") (AtomExpr (IntAtom 2)),DeclareAndAssignStmt (Var IntType "z") (AddExpr (VarAtom (Var IntType "x")) (VarAtom (Var IntType "y")))],(varContext [Var IntType "z",Var IntType "y",Var IntType "x"])),[])
         ]
     )
 
@@ -66,7 +66,7 @@ parseFunctionTests = TestGroup
               "(1) Empty function returning int ( int main() {} )" -: parseFunction [NatTok "int", NatTok "main", LParenTok, RParenTok, LBraceTok, RBraceTok] --> Right (Function "main" [] IntType [], [])
             , "(2) Function with multiple arguments ( int add(int a, int b) { return a + b; } )" -: parseFunction [NatTok "int", NatTok "add", LParenTok, NatTok "int", NatTok "a", CommaTok, NatTok "int", NatTok "b", RParenTok, LBraceTok, ReturnTok, NatTok "a", PlusTok, NatTok "b", SemiColonTok, RBraceTok] --> Right (Function "add" [Var IntType "a", Var IntType "b"] IntType [ReturnStmt (AddExpr (VarAtom (Var IntType "a")) (VarAtom (Var IntType "b")))], [])
             , "(3) Function returning a int literal ( int getInt() { return 1; } )" -: parseFunction [NatTok "int", NatTok "getInt", LParenTok, RParenTok, LBraceTok, ReturnTok, PrimIntTok 1, SemiColonTok, RBraceTok] --> Right (Function "getInt" [] IntType [ReturnStmt (AtomExpr (IntAtom 1))], [])
-            , "(4) Function with local variable declaration ( int doMaths() { int x = 5; return x; } )" -: parseFunction [NatTok "int", NatTok "doMaths", LParenTok, RParenTok, LBraceTok, NatTok "int", NatTok "x", EqualsTok, PrimIntTok 5, SemiColonTok, ReturnTok, NatTok "x", SemiColonTok, RBraceTok] --> Right (Function "doMaths" [] IntType [DeclareAndAssignStmt (Var IntType "x") (AtomExpr (IntAtom 1)), ReturnStmt (AtomExpr (VarAtom (Var IntType "x")))], [])
+            , "(4) Function with local variable declaration ( int doMaths() { int x = 5; return x; } )" -: parseFunction [NatTok "int", NatTok "doMaths", LParenTok, RParenTok, LBraceTok, NatTok "int", NatTok "x", EqualsTok, PrimIntTok 5, SemiColonTok, ReturnTok, NatTok "x", SemiColonTok, RBraceTok] --> Right (Function "doMaths" [] IntType [DeclareAndAssignStmt (Var IntType "x") (AtomExpr (IntAtom 5)), ReturnStmt (AtomExpr (VarAtom (Var IntType "x")))], [])
         ]
     )
 

@@ -171,11 +171,11 @@ parseFunctionDeclarator ctx (NatTok x : toks) = do
 parseFunctionDeclarator _ toks = Left $ InvalidType toks
 
 parseBlock :: Context -> Parser ([Stmt], Context)
-parseBlock vars toks = do
+parseBlock ctx toks = do
     toks' <- consumeTok LBraceTok toks
-    parseNextStmt vars toks'
+    parseNextStmt ctx toks'
     where
-        parseNextStmt :: [Var] -> Parser ([Stmt], Context)
+        parseNextStmt :: Context -> Parser ([Stmt], Context)
         parseNextStmt ctx1 toks1 = ((\toks2 -> (([], ctx1), toks2)) <$> consumeTok RBraceTok toks1) <|> do
             ((stmt, ctx2), toks2) <- parseStmt ctx1 toks1
             ((stmts, ctx3), toks3) <- parseNextStmt ctx2 toks2
