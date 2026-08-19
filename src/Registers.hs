@@ -4,7 +4,7 @@ import Data.Maybe
 import Types
 
 registers :: [Location]
-registers = [R12, R13, R14, R15, DummyReg 1, DummyReg 2]
+registers = [R12, R13, R14, R15, R10, R11]
 
 type LiveVariables = [Var]
 

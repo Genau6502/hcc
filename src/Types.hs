@@ -23,16 +23,37 @@ data Error = Unexpected | IntegerParseError String | UnexpectedToken String | No
 data Token = LBraceTok | RBraceTok | SemiColonTok | EqualsTok | LParenTok | RParenTok | PrimIntTok Int | CharTok Char | VoidTok | StructTok | UnionTok | NatTok String | CommaTok | AsteriskTok | AmpersandTok | WhileTok | ForTok | ReturnTok | PlusTok | MinusTok | DivTok | GreaterTok | LessTok | StaticTok | DecimalTok | SizeOfTok | LSqParenTok | RSqParenTok
     deriving (Eq, Show)
 
-data Location = R12 | R13 | R14 | R15 | DummyReg Int | Stack Int | Immediate Int
+data Location =
+    -- Scratch - caller saved
+    R10 | R11
+    -- Callee saved
+    | R12 | R13 | R14 | R15 | RBX | RBP
+    -- Special purpose
+    | RSP | RAX
+    -- Arguments - caller saved
+    | RDI | RSI | RDX | RCX | R8 | R9
+    | Stack Int
+    | Immediate Int
     deriving Eq
 
 instance Show Location where
-    show R12 = "R12"
-    show R13 = "R13"
-    show R14 = "R14"
-    show R15 = "R15"
-    show (Stack n) = "Stack " ++ show n
-    show (DummyReg n) = "Dummy_" ++ show n
-    show (Immediate i) = '$':(show i)
+    show R8 = "%r8"
+    show R9 = "%r9"
+    show R10 = "%r10"
+    show R11 = "%r11"
+    show R12 = "%r12"
+    show R13 = "%r13"
+    show R14 = "%r14"
+    show R15 = "%r15"
+    show RDI = "%rdi"
+    show RSI = "%rsi"
+    show RDX = "%rdx"
+    show RCX = "%rcx"
+    show RSP = "%rsp"
+    show RAX = "%rax"
+    show RBX = "%rbx"
+    show RBP = "%rbx"
+    show (Immediate i) = '$':show i
+    show (Stack n) = show n
 
 type RegisterAllocation = [(Var, Location)]
