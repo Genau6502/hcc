@@ -8,7 +8,7 @@ import TypeCheckTest
 import CompileTest
 
 tests :: [TestGroup]
-tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseStmtTests, parseBlockTests, parseDeclaratorTests, parseAbstractDeclaratorTests, typeCheckTests, compileBlockTests
+tests = [ tokeniserTests, parseAtomTests, parseExprTests, parseFunctionTests, parseStmtTests, parseBlockTests, parseDeclaratorTests, parseAbstractDeclaratorTests, typeCheckTests, compileBlockTests
     ]
 
 runTests :: IO ()

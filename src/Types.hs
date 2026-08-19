@@ -29,6 +29,9 @@ data Stmt = DeclareAndAssignStmt Var Expr | AssignStmt Var Expr | ReturnStmt Exp
 
 type Block = [Stmt]
 
+data Function = Function String [Var] Type Block
+    deriving (Eq, Show)
+
 data Error = Unexpected | IntegerParseError String | UnexpectedToken String | NoMoreTokens | InvalidChar String | ExpectedChar Token | ExpectedInt Token | InvalidType [Token] | VariableAlreadyDeclared String | MismatchType Type Type
     deriving (Eq, Show)
 

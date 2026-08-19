@@ -57,6 +57,19 @@ parseBlockTests = TestGroup
         ]
     )
 
+-- Functions
+parseFunctionTests :: TestGroup
+parseFunctionTests = TestGroup
+    (
+        "Parse function tests",
+        [
+              "(1) Empty function returning int ( int main() {} )" -: parseFunction [NatTok "int", NatTok "main", LParenTok, RParenTok, LBraceTok, RBraceTok] --> Right (Function "main" [] IntType [], [])
+            , "(2) Function with multiple arguments ( int add(int a, int b) { return a + b; } )" -: parseFunction [NatTok "int", NatTok "add", LParenTok, NatTok "int", NatTok "a", CommaTok, NatTok "int", NatTok "b", RParenTok, LBraceTok, ReturnTok, NatTok "a", PlusTok, NatTok "b", SemiColonTok, RBraceTok] --> Right (Function "add" [Var IntType "a", Var IntType "b"] IntType [ReturnStmt (AddExpr (VarAtom (Var IntType "a")) (VarAtom (Var IntType "b")))], [])
+            , "(3) Function returning a int literal ( int getInt() { return 1; } )" -: parseFunction [NatTok "int", NatTok "getInt", LParenTok, RParenTok, LBraceTok, ReturnTok, PrimIntTok 1, SemiColonTok, RBraceTok] --> Right (Function "getInt" [] IntType [ReturnStmt (AtomExpr (IntAtom 1))], [])
+            , "(4) Function with local variable declaration ( int doMaths() { int x = 5; return x; } )" -: parseFunction [NatTok "int", NatTok "doMaths", LParenTok, RParenTok, LBraceTok, NatTok "int", NatTok "x", EqualsTok, PrimIntTok 5, SemiColonTok, ReturnTok, NatTok "x", SemiColonTok, RBraceTok] --> Right (Function "doMaths" [] IntType [DeclareAndAssignStmt (Var IntType "x") (AtomExpr (IntAtom 1)), ReturnStmt (AtomExpr (VarAtom (Var IntType "x")))], [])
+        ]
+    )
+
 -- Types
 parseDeclaratorTests :: TestGroup
 parseDeclaratorTests = TestGroup

@@ -1,4 +1,4 @@
-module Parser(parseAtom, parseExpr, parseStmt, parseBlock, parseDeclarator, parseAbstractDeclarator) where
+module Parser(parseAtom, parseExpr, parseStmt, parseBlock, parseDeclarator, parseAbstractDeclarator, parseFunction) where
 
 import Types
 import ParseContext
@@ -46,7 +46,7 @@ parseDeclarator ctx (NatTok x : toks) = do
             (outer, toks''') <- parsePost toks''
             return $ ((\base -> ArrayType (outer base) sizeExpr), toks''')
         parsePost (LParenTok:toks) = do
-            (argts, toks') <- parseArgTypes ctx toks
+            (argts, toks') <- parseAbstractArgTypes ctx toks
             (outer, toks'') <- parsePost toks'
             return $ ((\base -> FunctionType argts (outer base)), toks'')
         parsePost toks = pure (id, toks)
@@ -83,7 +83,7 @@ parseAbstractDeclarator ctx (NatTok x : toks) = do
             (outer, toks''') <- parsePost toks''
             return $ ((\base -> ArrayType (outer base) sizeExpr), toks''')
         parsePost (LParenTok:toks) = do
-            (argts, toks') <- parseArgTypes ctx toks
+            (argts, toks') <- parseAbstractArgTypes ctx toks
             (outer, toks'') <- parsePost toks'
             return $ ((\base -> FunctionType argts (outer base)), toks'')
         parsePost toks = pure (id, toks)
@@ -95,20 +95,80 @@ parseIntExpr ctx toks e = case (parseTypeOfExpr ctx e) of
     Right IntType -> Right e
     Right t -> Left $ InvalidType (NatTok "var_name" : toks)
 
-parseArgTypes :: Context -> Parser [Type]
-parseArgTypes ctx (RParenTok:toks) = pure ([], toks)
-parseArgTypes ctx (NatTok x:toks) = do
+parseAbstractArgTypes :: Context -> Parser [Type]
+parseAbstractArgTypes ctx (RParenTok:toks) = pure ([], toks)
+parseAbstractArgTypes ctx (NatTok x:toks) = do
     (t, toks') <- parseAbstractDeclarator ctx (NatTok x:toks)
-    (ts, toks'') <- parseNextArgType ctx toks'
+    (ts, toks'') <- parseNextAbstractArgType ctx toks'
     return (t:ts, toks'')
-parseArgTypes _ _ = Left $ ExpectedChar RParenTok
+parseAbstractArgTypes _ _ = Left $ ExpectedChar RParenTok
 
-parseNextArgType :: Context -> Parser [Type]
-parseNextArgType _ (RParenTok:toks) = pure ([], toks)
-parseNextArgType ctx (CommaTok:toks) = do
-    (ts, toks') <- parseArgTypes ctx toks
+parseNextAbstractArgType :: Context -> Parser [Type]
+parseNextAbstractArgType _ (RParenTok:toks) = pure ([], toks)
+parseNextAbstractArgType ctx (CommaTok:toks) = do
+    (ts, toks') <- parseAbstractArgTypes ctx toks
     return (ts, toks')
-parseNextArgType _ _ = Left $ Unexpected  
+parseNextAbstractArgType _ _ = Left $ Unexpected
+
+parseArgs :: Parser [Var]
+parseArgs (LParenTok:RParenTok:toks) = pure ([], toks)
+parseArgs toks = do
+    toks1 <- consumeTok LParenTok toks
+    ((name, t), toks2) <- parseDeclarator emptyContext toks1
+    (vs, toks3) <- parseNextArgs toks2
+    return (Var t name:vs, toks3)
+
+parseNextArgs :: Parser [Var]
+parseNextArgs [] = Left NoMoreTokens
+parseNextArgs (RParenTok:toks) = pure ([], toks)
+parseNextArgs (CommaTok:toks) = do
+    ((name, t), toks1) <- parseDeclarator emptyContext toks
+    (vs, toks') <- parseNextArgs toks1
+    return (Var t name:vs, toks')
+parseNextArgs toks = Left $ UnexpectedToken (show toks)
+
+parseFunction :: Parser Function
+parseFunction [] = Left NoMoreTokens
+parseFunction toks = do
+    ((name, args, returntype), toks') <- parseFunctionDeclarator emptyContext toks
+    ((body, _), toks'') <- parseBlock (putVarsInScope emptyContext args) toks'
+    return (Function name args returntype body, toks'')
+
+parseFunctionDeclarator :: Context -> Parser (String, [Var], Type)
+parseFunctionDeclarator ctx (NatTok x : toks) = do
+    t <- parseBaseType x
+    ((name, args, f), toks') <- parseFunctionDeclarator' toks
+    
+    return ((name, args, f t), toks')
+    where
+        parseFunctionDeclarator' :: Parser (String, [Var], Type -> Type)
+        parseFunctionDeclarator' (LParenTok:toks) = do
+            ((name, args, inner), toks') <- parseFunctionDeclarator' toks
+            toks'' <- consumeTok RParenTok toks'
+            (outer, toks''') <- parsePost toks''
+            return ((name, args, \base -> (inner.outer) base), toks''')
+        parseFunctionDeclarator' (AsteriskTok:toks) = do
+            ((name, args, inner), toks') <- parseFunctionDeclarator' toks
+            return ((name, args, \base -> inner (PointerType base)), toks')
+        parseFunctionDeclarator' (NatTok x:toks) = do
+            (args, toks') <- parseArgs toks
+            (f, toks'') <- parsePost toks'
+            return ((x, args, f), toks'')
+        parseFunctionDeclarator' toks = Left $ InvalidType toks
+
+        parsePost :: Parser (Type -> Type)
+        parsePost (LSqParenTok:toks) = do
+            (e, toks') <- parseExpr ctx toks
+            sizeExpr <- parseIntExpr ctx toks' e
+            toks'' <- consumeTok RSqParenTok toks'
+            (outer, toks''') <- parsePost toks''
+            return $ ((\base -> ArrayType (outer base) sizeExpr), toks''')
+        parsePost (LParenTok:toks) = do
+            (argts, toks') <- parseAbstractArgTypes ctx toks
+            (outer, toks'') <- parsePost toks'
+            return $ ((\base -> FunctionType argts (outer base)), toks'')
+        parsePost toks = pure (id, toks)
+parseFunctionDeclarator _ toks = Left $ InvalidType toks
 
 parseBlock :: Context -> Parser ([Stmt], Context)
 parseBlock vars toks = do

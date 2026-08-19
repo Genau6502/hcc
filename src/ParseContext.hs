@@ -1,8 +1,11 @@
-module ParseContext(emptyContext, putVarInScope, removeVarFromScope, varInScope, Context) where
+module ParseContext(emptyContext, putVarInScope, removeVarFromScope, varInScope, putVarsInScope, Context) where
 
 import Types
 
 type Context = [Var]
+
+putVarsInScope :: Context -> [Var] -> Context
+putVarsInScope = foldl putVarInScope
 
 putVarInScope :: Context -> Var -> Context
 putVarInScope cs var = var:cs
